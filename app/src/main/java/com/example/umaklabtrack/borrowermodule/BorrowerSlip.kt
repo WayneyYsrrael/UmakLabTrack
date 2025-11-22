@@ -73,6 +73,7 @@ fun BorrowerInformationSlipDialog(
     val coroutineScope = rememberCoroutineScope()
     var toastType by remember { mutableStateOf("") }
 
+
     fun showToast(title: String, message: String, type: String) {
         toastTitle = title
         toastMessage = message
@@ -99,6 +100,7 @@ fun BorrowerInformationSlipDialog(
     var subject by remember { mutableStateOf("") }
     var college by remember { mutableStateOf("") }
     var yearAndSection by remember { mutableStateOf("") }
+    var isChecked by remember { mutableStateOf(false) }
 
     // --- DATE & TIME STATE ---
     val calendar = Calendar.getInstance()
@@ -350,15 +352,59 @@ fun BorrowerInformationSlipDialog(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // --- REMINDERS ---
-                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, Color(0xFFE0E0E0)), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text(text = "Reminders:", style = TextStyle(fontFamily = poppins, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray))
-                            Text(text = "1. Please have the student representatives’ COR ready upon claiming the items.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
-                            Text(text = "2. Double-check all items and information before confirming.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
-                            Text(text = "3. Return all borrowed apparatus clean and dry.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
-                            Text(text = "4. Replace any damaged or broken apparatus as soon as possible.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
+                            Text(
+                                text = "Reminders:",
+                                style = TextStyle(
+                                    fontFamily = poppins,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color.Gray
+                                )
+                            )
+                            Text(
+                                text = "1. Please have the student representatives’ COR ready upon claiming the items.",
+                                style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray)
+                            )
+                            Text(
+                                text = "2. Double-check all items and information before confirming.",
+                                style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray)
+                            )
+                            Text(
+                                text = "3. Return all borrowed apparatus clean and dry.",
+                                style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray)
+                            )
+                            Text(
+                                text = "4. Replace any damaged or broken apparatus as soon as possible.",
+                                style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray)
+                            )
+
+                            // Checkbox row
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Start,
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { isChecked = it }
+                                )
+                                Text(
+                                    text = "I have read and understood all reminders.",
+                                    style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray)
+                                )
+                            }
                         }
                     }
+
 
                     Spacer(Modifier.height(16.dp))
                     Divider(color = Color(0xFF182C55))
@@ -379,9 +425,11 @@ fun BorrowerInformationSlipDialog(
                                 val isFormValid = !subjectError && !collegeError && !yearAndSectionError && !returnDateError && !studentListError
 
                                 if (isFormValid) {
+                                    UserSession.room="0"
                                     UserSession.college = college
                                     UserSession.yearSection = yearAndSection
                                     UserSession.subject = subject
+                                    UserSession.listStud=studentList
                                     showToast("Info!", "Your request has been sent.", "info")
                                     coroutineScope.launch {
                                         delay(2000)
@@ -392,7 +440,12 @@ fun BorrowerInformationSlipDialog(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth().height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182C55)),
+                            enabled = isChecked,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isChecked) Color(0xFF182C55) else Color(0xFF182C55).copy(alpha = 0.9f)
+                                , // active vs inactive color
+                                contentColor = Color.White
+                            ),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text("Confirm", style = TextStyle(fontFamily = poppins, fontWeight = FontWeight.Bold, fontSize = 16.sp))

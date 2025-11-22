@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
             if (userLoggedIn) {
                 val user = sessionPrefs.loadSession()
                 UserSession.USER_ID=user.userId
+                UserSession.name=user.name
                 println("✅ User is logged in: ${user.name}, ${user.email}")
             } else {
                 println("❌ User is not logged in")

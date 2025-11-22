@@ -8,6 +8,14 @@ object UserSession {
     var cNum: String? = null
     var USER_ID: String? = null
 
+    var listStud: List<String>? = null
+
+    //logs
+    var trtype: String? = null
+    var trstatus: String? = null
+    var trdate: String? = null
+
+
     // Additional fields
     var college: String? = null
     var subject: String? = null

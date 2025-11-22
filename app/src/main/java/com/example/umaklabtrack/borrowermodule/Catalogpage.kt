@@ -64,7 +64,10 @@ data class ItemDetails(
     val isAvailable: Boolean,
     val description: String,
     val type: String,
+    val isForLoan:Boolean,
     val imageResId: Int? = null
+
+
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -351,10 +354,10 @@ fun FrequentlyBorrowedSection(
 ) {
     // --- MODIFICATION: Removed imageResId to default to gray boxes ---
     val frequentlyBorrowedItems = listOf(
-        ItemDetails(1,"Beaker, 250ml", true, "Glass beaker for experiments.", "Apparatus"),
-        ItemDetails(2,"Microscope, Compound", false, "High power microscope.", "Apparatus"),
-        ItemDetails(3,"Hydrochloric Acid, 1L", true, "1M solution in water.", "Chemical"),
-        ItemDetails(4,"Onion Cell, l.s.", true, "Longitudinal section of an onion cell.", "Slide") // No imageId or box for slide
+        ItemDetails(1,"Beaker, 250ml", true, "Glass beaker for experiments.", "Apparatus",false),
+        ItemDetails(2,"Microscope, Compound", false, "High power microscope.", "Apparatus",false),
+        ItemDetails(3,"Hydrochloric Acid, 1L", true, "1M solution in water.", "Chemical",false),
+        ItemDetails(4,"Onion Cell, l.s.", true, "Longitudinal section of an onion cell.", "Slide",false) // No imageId or box for slide
     )
     // --- END OF MODIFICATION ---
 
@@ -778,6 +781,7 @@ fun ItemDetailsDialog_Available_Preview() {
             isAvailable = true,
             description = "Glass beaker for experiments.",
             type = "Apparatus",
+            isForLoan=false,
             imageResId = R.drawable.apparatus // Added for preview
         ),
         onDismiss = {}
@@ -794,6 +798,7 @@ fun ItemDetailsDialog_Unavailable_Preview() {
             isAvailable = false,
             description = "High power microscope.",
             type = "Apparatus",
+            isForLoan=false,
             imageResId = R.drawable.apparatus // Added for preview
         ),
         onDismiss = {}
@@ -809,7 +814,8 @@ fun ItemDetailsDialog_Slide_Preview() { // <-- ADDED SLIDE PREVIEW
             name = "Onion Cell, l.s.",
             isAvailable = true,
             description = "Longitudinal section of an onion cell.",
-            type = "Slide" // Type is "Slide"
+            type = "Slide",
+            isForLoan=false
         ),
         onDismiss = {}
     )

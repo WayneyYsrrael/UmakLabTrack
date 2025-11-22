@@ -107,14 +107,26 @@ object ItemRepository {
 
 
         private set
+
+    var apparatusItemsL: List<ItemDetails> = emptyList()
+        private set
+    var chemicalItemsL: List<ItemDetails> = emptyList()
+        private set
+    var slidesItemsL: List<ItemDetails> = emptyList()
+
+
+        private set
     val frequentlyBorrowedItems = listOf(
-        ItemDetails(1,"Beaker, 250ml", true, "Glass beaker for experiments.", "Apparatus"),
-        ItemDetails(2,"Microscope, Compound", false, "High power microscope.", "Apparatus"),
-        ItemDetails(3,"Hydrochloric Acid, 1L", true, "1M solution in water.", "Chemical"),
-        ItemDetails(4,"Onion Cell, l.s.", true, "Longitudinal section of an onion cell.", "Slide")
+        ItemDetails(1,"Beaker, 250ml", true, "Glass beaker for experiments.", "Apparatus",false),
+        ItemDetails(2,"Microscope, Compound", false, "High power microscope.", "Apparatus",false),
+        ItemDetails(3,"Hydrochloric Acid, 1L", true, "1M solution in water.", "Chemical",false),
+        ItemDetails(4,"Onion Cell, l.s.", true, "Longitudinal section of an onion cell.", "Slide",false)
     )
     val allItems: List<ItemDetails>
         get() = (apparatusItems + chemicalItems + slidesItems + frequentlyBorrowedItems).distinctBy { it.name }
+
+    val allItemsL: List<ItemDetails>
+        get() = (apparatusItemsL + chemicalItemsL + slidesItemsL + frequentlyBorrowedItems).distinctBy { it.name }
 
     suspend fun loadAllItemsFromDb() {
         val itemsFromDb = kotlinx.coroutines.suspendCancellableCoroutine<List<Items>> { cont ->
@@ -132,16 +144,22 @@ object ItemRepository {
 
                         description = item.description,
                 type = item.category,
-                imageResId = null
+                imageResId = null,
+                isForLoan=item.isForLoan
+
             )
 
         }
 
         val categorized = allItemDetails.groupBy { it.type }
 
-        apparatusItems = categorized["Apparatus"] ?: emptyList()
-        chemicalItems = categorized["Chemical"] ?: emptyList()
-        slidesItems = categorized["Slide"] ?: emptyList()
+        apparatusItems = categorized["Apparatus"] ?.filter { !it.isForLoan }?: emptyList()
+        chemicalItems = categorized["Chemical"] ?.filter { !it.isForLoan }?: emptyList()
+        slidesItems = categorized["Slide"] ?.filter { !it.isForLoan }?: emptyList()
+        slidesItemsL = categorized["Slide"]?.filter { it.isForLoan } ?: emptyList()
+        chemicalItemsL = categorized["Chemical"]?.filter { it.isForLoan } ?: emptyList()
+        apparatusItemsL = categorized["Apparatus"]?.filter { it.isForLoan } ?: emptyList()
+
     }
 }
 
@@ -332,8 +350,7 @@ fun BorrowScreen(
                                 UserSession.college!!,
                                 UserSession.yearSection!!,
                                 selectedItems,
-                                "Borrow",
-                                UserSession.room!!
+                                "Borrow"
                             )
                             // Remove all items after insertion
                             withContext(Dispatchers.Main) {

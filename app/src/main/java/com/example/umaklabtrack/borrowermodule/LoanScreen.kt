@@ -102,7 +102,7 @@ fun LoanScreen(
                         ApparatusHeader(sortOption = sortOption, onSortChange = { sortOption = it })
                         Spacer(modifier = Modifier.height(16.dp))
                         DynamicLoanList(
-                            items = ItemRepository.apparatusItems,
+                            items = ItemRepository.apparatusItemsL,
                             sortOption = sortOption,
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
@@ -114,7 +114,7 @@ fun LoanScreen(
                         ChemicalsHeader(sortOption = sortOption, onSortChange = { sortOption = it })
                         Spacer(modifier = Modifier.height(16.dp))
                         DynamicLoanList(
-                            items = ItemRepository.chemicalItems,
+                            items = ItemRepository.chemicalItemsL,
                             sortOption = sortOption,
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
@@ -126,7 +126,7 @@ fun LoanScreen(
                         SlidesHeader(sortOption = sortOption, onSortChange = { sortOption = it })
                         Spacer(modifier = Modifier.height(16.dp))
                         DynamicLoanList(
-                            items = ItemRepository.slidesItems,
+                            items = ItemRepository.slidesItemsL,
                             sortOption = sortOption,
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
@@ -191,7 +191,7 @@ fun LoanScreen(
             }
 
             if (showSelectedItemsDialog) {
-                val itemsInCart = ItemRepository.allItems.filter { selectedItems.containsKey(it.name) }
+                val itemsInCart = ItemRepository.allItemsL.filter { selectedItems.containsKey(it.name) }
 
                 if (itemsInCart.isEmpty()) {
                     LaunchedEffect(Unit) {
@@ -240,7 +240,6 @@ fun LoanScreen(
                                 "", // Section Removed (Empty String)
                                 selectedItems,
                                 "Loan",
-                                UserSession.room ?: "0"
                             )
 
                             withContext(Dispatchers.Main) {

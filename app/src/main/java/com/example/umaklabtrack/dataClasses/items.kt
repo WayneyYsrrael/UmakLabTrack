@@ -18,7 +18,8 @@ data class Items(
     val status: AvailabilityStatus,
     val quantity: Int,
     val description: String,
-    val category: String
+    val category: String,
+    val isForLoan: Boolean
 )
 
 @Serializable
@@ -27,3 +28,4 @@ data class SelectedItem(
     val name: String,
     val quantity: Int
 )
+

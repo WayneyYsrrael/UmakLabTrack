@@ -111,6 +111,7 @@ fun ReservationInformationSlipDialog(
     // --- DATE & TIME STATE ---
     var scheduledPickUpStr by remember { mutableStateOf("") }
     var returnByStr by remember { mutableStateOf("") }
+    var isChecked by remember { mutableStateOf(false) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -416,7 +417,20 @@ fun ReservationInformationSlipDialog(
                             Text("3.Reagent containers, bottles, and other apparatus must be returned to the Central Laboratory clean and dry.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
                             Text("4.Replace any damaged or broken apparatus as soon as possible.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
                         }
-                    }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start,
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Checkbox(
+                                checked = isChecked,
+                                onCheckedChange = { isChecked = it }
+                            )
+                            Text(
+                                text = "I have read and understood all reminders.",
+                                style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray)
+                            )
+                        }                    }
 
                     Spacer(Modifier.height(16.dp))
                     Divider(color = Color(0xFF182C55))
@@ -446,6 +460,7 @@ fun ReservationInformationSlipDialog(
                                     UserSession.subject = subject
                                     UserSession.pickup = scheduledPickUpStr
                                     UserSession.room = "0"
+                                    UserSession.listStud=studentList
 
                                     showToast("Info!", "Your reservation request has been sent.", "info")
 
@@ -460,9 +475,11 @@ fun ReservationInformationSlipDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
+                            enabled = isChecked,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF182C55),
-                                disabledContainerColor = Color.Gray
+                                containerColor = if (isChecked) Color(0xFF182C55) else Color(0xFF182C55).copy(alpha = 0.9f)
+                                , // active vs inactive color
+                                contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(10.dp)
                         ) {

@@ -26,7 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -39,6 +39,16 @@ import androidx.compose.ui.unit.sp
 import com.example.umaklabtrack.R
 import com.example.umaklabtrack.ui.theme.AppColors
 import com.example.umaklabtrack.ui.theme.poppins
+import com.example.umaklabtrack.entityManagement.ItemManage.BorrowInfo
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.example.umaklabtrack.entityManagement.ItemManage
+import com.example.umaklabtrack.utils.TimeUtils
+import com.example.umaklabtrack.dataClasses.UserSession
+
+private val spb= ItemManage()
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +63,12 @@ fun HomePage(
     onBrowseCatalogClick: () -> Unit = {},
     onNavSelected: (String) -> Unit = {}
 ) {
+    var latestReservation by remember { mutableStateOf<BorrowInfo?>(null) }
+    var isCheck by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        latestReservation = spb.getLatestReservation()
+    }
     Scaffold(
         topBar = { TopHeaderBar() }, // This is fine, it calls the REAL TopHeaderBar
         bottomBar = { BottomNavigationBar(selectedRoute = "home", onNavSelected = onNavSelected) },
@@ -137,13 +152,24 @@ fun HomePage(
                 Spacer(modifier = Modifier.height(8.dp)) // Adjusted space
 
                 // Your card, which now correctly sends the toast command
-                OngoingRequestCard(
-                    name = "Prof. Susan Guevarra",
-                    transactionType = "Borrow",
-                    dateTime = "11/10/25 • 2:00PM",
-                    status = "Pending Approval",
-                    onEdit = { onNavSelected("logs?showToast=true") } // navigate with toast
-                )
+                if (latestReservation != null) {
+                    UserSession.trdate= TimeUtils.formatTimestamp(latestReservation!!.created_at)
+                    UserSession.trstatus=if (latestReservation!!.status == "Pending" && latestReservation!!.type == "Borrow") {
+                        "preparing items"
+                    } else {
+                        latestReservation!!.type
+                    }
+                    UserSession.trtype = latestReservation!!.type
+
+                    // Display the card only if there’s a reservation
+                    OngoingRequestCard(
+                        name = UserSession.name!!,
+                        transactionType = UserSession.trtype!!,
+                        dateTime = UserSession.trdate!!,
+                        status = UserSession.trstatus!!,
+                        onEdit = { onNavSelected("logs?showToast=true") }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(30.dp))
             }
@@ -202,6 +228,12 @@ fun OngoingRequestCard(
     status: String,
     onEdit: () -> Unit
 ) {
+    var latestReservation by remember { mutableStateOf<BorrowInfo?>(null) }
+    var isCheck by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        latestReservation = spb.getLatestReservation()
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -236,6 +268,7 @@ fun OngoingRequestCard(
                 elevation = CardDefaults.cardElevation(2.dp),
                 border = BorderStroke(1.dp, Color.LightGray)
             ) {
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -243,41 +276,72 @@ fun OngoingRequestCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically // Centered
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = name,
-                            fontFamily = poppins,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.Black
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "Transaction: $transactionType",
-                            fontFamily = poppins,
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                        Text(
-                            text = "Date & Time: $dateTime",
-                            fontFamily = poppins,
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                        Text(
-                            text = "Status: $status",
-                            fontFamily = poppins,
-                            fontSize = 12.sp,
-                            color = Color(0xFF1288BF)
-                        )
-                    }
-                    Button(
-                        onClick = onEdit,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182C55)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                    ) {
-                        Text("Edit", fontFamily = poppins, fontSize = 12.sp)
+                    if (latestReservation != null) {
+
+                        val r = latestReservation!!   // shorter reference
+
+                        // ===== SHOW LATEST RESERVATION =====
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = UserSession.name!!,
+                                fontFamily = poppins,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.Black
+                            )
+                            Spacer(Modifier.height(4.dp))
+
+                            Text(
+                                text = "Transaction: ${r.type}",
+                                fontFamily = poppins,
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+
+                            Text(
+                                text = "Date & Time: $dateTime",
+                                fontFamily = poppins,
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+
+                            Text(
+                                text = "Status: ${r.status}",
+                                fontFamily = poppins,
+                                fontSize = 12.sp,
+                                color = Color(0xFF1288BF)
+                            )
+                        }
+
+                        Button(
+                            onClick = onEdit,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182C55)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("View", fontFamily = poppins, fontSize = 12.sp)
+                        }
+
+                    } else {
+
+                        // ===== WHEN NO LATEST RESERVATION =====
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "No ongoing request",
+                                fontFamily = poppins,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.Black
+                            )
+                        }
+
+                        Button(
+                            onClick = {},
+                            enabled = false,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("View", fontFamily = poppins, fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -290,3 +354,5 @@ fun OngoingRequestCard(
 fun HomePagePreview() {
     HomePage()
 }
+
+

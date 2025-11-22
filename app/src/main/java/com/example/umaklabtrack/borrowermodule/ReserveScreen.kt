@@ -258,8 +258,7 @@ fun ReserveScreen(
                                 UserSession.college!!,
                                 UserSession.yearSection!!,
                                 selectedItems,
-                                "Reserve",
-                                UserSession.room!!
+                                "Reserve"
                             )
                             withContext(Dispatchers.Main) {
                                 selectedItems.keys.forEach { itemName ->
