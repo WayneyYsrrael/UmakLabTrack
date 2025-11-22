@@ -99,17 +99,17 @@ fun RequestsAdminPage(
     var showNewRequestBanner by remember { mutableStateOf(requests.isNotEmpty()) }
 
     var showRequestDialog by remember { mutableStateOf(false) }
+    var showRejectDialog by remember { mutableStateOf(false) }
     var selectedRequest by remember { mutableStateOf<RequestData?>(null) }
 
     // Mock items to show inside the dialog
-    val mockItems = remember { listOf(
-        SelectedItem("a", "Item Name", "Apparatus", 1),
-        SelectedItem("b", "Item Name", "Chemicals", 2),
-        SelectedItem("c", "Item Name", "Slides", 3),
-        SelectedItem("d", "Item Name", "Apparatus", 1),
-        SelectedItem("e", "Item Name", "Chemicals", 2),
-        SelectedItem("f", "Item Name", "Slides", 3),
-    )}
+    val mockItems = remember {
+        listOf(
+            SelectedItem("a", "Item Name", "Apparatus", 1),
+            SelectedItem("b", "Item Name", "Chemicals", 2),
+            SelectedItem("c", "Item Name", "Slides", 3)
+        )
+    }
 
     // Auto-hide banner logic
     LaunchedEffect(Unit) {
@@ -122,17 +122,15 @@ fun RequestsAdminPage(
     Scaffold(
         topBar = { null },
         bottomBar = {
-            // UPDATED: Use the consistent AdminBottomNavigationBar
-            AdminBottomNavigationBar(
+            AdminBottomReqNavigationBar(
                 selectedIndex = currentSelectedIndex,
                 onItemSelected = { index ->
                     currentSelectedIndex = index
-                    // Handle the navigation event here in the Scaffold call
                     when (index) {
                         0 -> onNavSelected("dashboard")
                         1 -> onNavSelected("requests")
                         2 -> onNavSelected("notifications")
-                        3 -> onNavSelected("logs")
+                        3 -> onNavSelected("history")
                         4 -> onNavSelected("profile")
                     }
                 }
@@ -158,14 +156,14 @@ fun RequestsAdminPage(
                 Text(
                     text = "Requests",
                     style = TextStyle(
-                        fontSize = 32.sp,
+                        fontSize = 24.sp,
                         fontFamily = poppins,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     ),
-                    modifier = Modifier.padding(top = 16.dp, bottom = 16.dp)
+                    modifier = Modifier.padding(start = 8.dp)
                 )
-
+                Spacer(modifier = Modifier.height(16.dp))
                 if (requests.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("You have no pending requests.", color = Color.Gray)
@@ -214,12 +212,29 @@ fun RequestsAdminPage(
                     selectedItems = mockItems,
                     onDismiss = { showRequestDialog = false },
                     onApprove = { showRequestDialog = false },
-                    onReject = { showRequestDialog = false }
+                    onReject = {
+                        // Open the reject reason dialog instead of just closing
+                        showRejectDialog = true
+                    }
+                )
+            }
+
+            // --- Layer 5: REJECT REASON DIALOG ---
+            if (showRejectDialog) {
+                RejectReasonDialog(
+                    onDismiss = { showRejectDialog = false },
+                    onConfirm = { reason ->
+                        // Handle the rejection reason here
+                        println("Rejected because: $reason") // Replace with API call or state update
+                        showRejectDialog = false
+                        showRequestDialog = false
+                    }
                 )
             }
         }
     }
 }
+
 
 // ==========================================
 //           2. NEW DIALOG DESIGN
@@ -444,7 +459,7 @@ fun AdminBottomReqNavigationBar(
         AdminNavItem("Dashboard", R.drawable.dashboard),
         AdminNavItem("Requests", R.drawable.requestcheck),
         AdminNavItem("Notifications", R.drawable.notif),
-        AdminNavItem("Logs", R.drawable.logs),
+        AdminNavItem("History", R.drawable.logs),
         AdminNavItem("Profile", R.drawable.profilenav)
     )
 
@@ -490,8 +505,120 @@ fun AdminBottomReqNavigationBar(
         }
     }
 }
-// ⬆️ CONSISTENT IMPLEMENTATION ENDS HERE ⬆️
 
+// ⬆️ CONSISTENT IMPLEMENTATION ENDS HERE ⬆️
+@Composable
+fun RejectReasonDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (reason: String) -> Unit
+) {
+    var reason by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            // 1. The "White Box" Dialog Dimensions
+            modifier = Modifier
+                .width(336.dp)
+                .height(279.dp),
+            // Using light gray so the white input field is visible (matches your screenshot)
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F4F4))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 20.dp), // Vertical padding to space things out
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween // Distributes items evenly
+            ) {
+                // 2. Header Text (16sp)
+                Text(
+                    text = "Please state the reason for\nrejecting the request.",
+                    style = TextStyle(
+                        fontSize = 16.sp, // Requested size
+                        fontFamily = poppins,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                )
+
+                // 3. Text Input for Rejection (299.dp x 34.dp)
+                Box(
+                    modifier = Modifier
+                        .width(299.dp)
+                        .height(50        .dp)
+                        .shadow(
+                            elevation = 2.dp,
+                            shape = RoundedCornerShape(8.dp),
+                            clip = false
+                        )
+                        .background(Color.White, shape = RoundedCornerShape(8.dp))
+                        .border(0.5.dp, Color.LightGray.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = reason,
+                        onValueChange = { reason = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp), // Inner padding for text
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            fontFamily = poppins,
+                            fontSize = 14.sp, // Input text size fits better at 14sp inside a 34dp box
+                            color = Color.Black
+                        ),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.Black)
+                    )
+                }
+
+                // 4. Buttons (300.dp x 50.dp, Text 16sp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Confirm Button
+                    Button(
+                        onClick = { onConfirm(reason) },
+                        modifier = Modifier
+                            .width(300.dp)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlueColor),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "Confirm Rejection",
+                            fontFamily = poppins,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp, // Requested size
+                            color = Color.White
+                        )
+                    }
+
+                    // Cancel Button
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .width(300.dp)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFEF5350)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "Cancel Rejection",
+                            fontFamily = poppins,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp, // Requested size
+                            color = Color(0xFFEF5350)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Preview(showSystemUi = true)
 @Composable

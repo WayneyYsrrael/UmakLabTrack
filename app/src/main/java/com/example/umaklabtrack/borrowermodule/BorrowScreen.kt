@@ -3,7 +3,10 @@ package com.example.umaklabtrack.borrowermodule
 // Imports para sa Toast Animation
 
 // import androidx.compose.material.icons.filled.Menu // <-- REMOVED
-
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -66,6 +69,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -141,7 +145,6 @@ object ItemRepository {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BorrowScreen(
@@ -160,7 +163,7 @@ fun BorrowScreen(
     var showSelectedItemsDialog by remember { mutableStateOf(false) }
     var showInfoSlipDialog by remember { mutableStateOf(false) } // State to control the slip
     var availabilityFilter by remember { mutableStateOf("All") } // All | Available | Unavailable
-
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -824,10 +827,10 @@ fun BorrowerBanner(title: String) {
 // --- This matches your screenshot, so it should be correct. ---
 @Composable
 fun SelectedItemsDialog(
-    selectedItems: List<ItemDetails>,
+    selectedItems: List<ItemDetails>, // <--- FIXED: Changed Item to ItemDetails
     itemQuantities: Map<String, Int>,
-    headerTitle: String = "Selected Items",       // Default title
-    headerSubtitle: String = "Borrowing",        // Default subtitle, can be "Reserving"
+    headerTitle: String = "Selected Items",
+    headerSubtitle: String = "Borrowing",
     onDismiss: () -> Unit,
     onRemoveItem: (String) -> Unit,
     onIncreaseQuantity: (String) -> Unit,
@@ -838,6 +841,7 @@ fun SelectedItemsDialog(
     var toastMessage by remember { mutableStateOf("") }
     var showToast by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     fun showInfoToast(message: String) {
         toastMessage = message
@@ -907,13 +911,13 @@ fun SelectedItemsDialog(
                         IconButton(
                             onClick = onDismiss,
                             modifier = Modifier
-                                .align(Alignment.TopEnd) // Aligns to the end of the Box
+                                .align(Alignment.TopEnd)
                                 .size(32.dp)
                         ) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color.Gray // This is the RED 'X'
+                                tint = Color.Gray
                             )
                         }
                     }
@@ -922,17 +926,32 @@ fun SelectedItemsDialog(
                     Divider(color = Color(0xFF182C55))
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                append("Note: ")
+                            }
+                            append("Each item has a maximum quantity of ‘n’.")
+                        },
+                        style = TextStyle(
+                            fontFamily = poppins,
+                            fontSize = 12.sp,
+                            color = Color.Black
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     // --- Scrollable list of selected items ---
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 300.dp), // Set a max height
+                            .heightIn(max = 300.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // 'item' here is now correctly inferred as 'ItemDetails'
                         items(selectedItems, key = { it.name }) { item ->
                             val currentQuantity = itemQuantities[item.name] ?: 1
 
-                            // --- This is the item card ---
                             SelectedItemCard(
                                 item = item,
                                 quantity = currentQuantity,
@@ -940,20 +959,24 @@ fun SelectedItemsDialog(
                                     onRemoveItem(item.name)
                                     showInfoToast("'${item.name}' has been removed.")
                                 },
-                                onIncrease = { onIncreaseQuantity(item.name) },
+                                onIncrease = {
+                                    if ((itemQuantities[item.name] ?: 1) >= 20) {
+                                        Toast.makeText(context, "Maximum quantity is 20", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        onIncreaseQuantity(item.name)
+                                    }
+                                },
                                 onDecrease = {
-                                    if (currentQuantity > 1) { // Only decrease if quantity is greater than 1
+                                    if (currentQuantity > 1) {
                                         onDecreaseQuantity(item.name)
                                     }
-                                    // If quantity is 1, do nothing
                                 }
                             )
                         }
                     }
 
-                    // ... (Rest of the dialog code: Toast, Dividers, Next Button) ...
-
                     Spacer(modifier = Modifier.height(16.dp))
+
                     AnimatedVisibility(
                         visible = showToast,
                         enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(animationSpec = tween(300)),
@@ -969,9 +992,9 @@ fun SelectedItemsDialog(
                     Button(
                         onClick = {
                             if (selectedItems.isNotEmpty()) {
-                                onNext() // Proceed to the slip
+                                onNext()
                             } else {
-                                onDismiss() // Just close the dialog
+                                onDismiss()
                             }
                         },
                         modifier = Modifier

@@ -24,25 +24,19 @@ import androidx.navigation.compose.rememberNavController
 // --- IMPORTS FOR TOAST LOGIC ---
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
+// --- ADMIN IMPORTS ---
 import com.example.umaklabtrack.adminmodule.HomeAdminPage
 import com.example.umaklabtrack.adminmodule.RequestsAdminPage
+import com.example.umaklabtrack.adminmodule.AdminProfileScreen
 // --------------------------------------------------
 import com.example.umaklabtrack.ui.theme.UMakLabTrackTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.umaklabtrack.preferences.SessionPreferences
-// --- IMPORT YOUR DIALOGS ---
-import com.example.umaklabtrack.borrowermodule.TermsAndConditionsDialog
-import com.example.umaklabtrack.borrowermodule.PrivacyPolicyDialog // <--- ADDED THIS IMPORT
 import com.example.umaklabtrack.dataClasses.UserSession
 
-// (All your other screen imports go here)
-// ...
-
-// -----------------------
-
-//private val crdtuser= CredentialsValidation()
-
+// --- 1. IMPORT YOUR NOTIFICATION PAGE ---
+import com.example.umaklabtrack.borrowermodule.NotificationPage
 
 class MainActivity : ComponentActivity() {
     private lateinit var sessionPrefs: SessionPreferences
@@ -50,7 +44,6 @@ class MainActivity : ComponentActivity() {
         sessionPrefs = SessionPreferences(this)
 
         super.onCreate(savedInstanceState)
-        //crdtuser.clearLoginPrefs(this)
         enableEdgeToEdge()
 
         lifecycleScope.launch {
@@ -123,9 +116,11 @@ class MainActivity : ComponentActivity() {
 
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route ?: "landing"
+
+        // --- 2. ADD "notifications" TO THIS LIST ---
         val loggedInRoutes = listOf(
             "home", "catalog", "apparatus", "chemicals", "slides",
-            "borrow", "reserve", "loan"
+            "borrow", "reserve", "loan", "notifications", "profile", "logs"
         )
         val isUserLoggedIn = loggedInRoutes.any { currentRoute.startsWith(it) }
 
@@ -135,10 +130,6 @@ class MainActivity : ComponentActivity() {
         var showPostResetSplash by remember { mutableStateOf(false) }
         var verificationSuccess by remember { mutableStateOf(false) }
         var phoneVerified by remember { mutableStateOf(false) }
-
-        // --- ADDED STATE FOR DIALOGS ---
-        var showTermsDialog by remember { mutableStateOf(false) }
-        var showPrivacyDialog by remember { mutableStateOf(false) } // <--- ADDED THIS STATE
 
         // 1. State for BorrowScreen
         var borrowItems by remember { mutableStateOf(mapOf<String, Int>()) }
@@ -298,14 +289,13 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // --- MODIFIED SIGNUP ROUTE ---
+                    // --- FIXED SIGNUP ROUTE ---
                     composable("signup") {
                         SignUpScreen(
                             onBackClick = { navController.popBackStack() },
                             onSignUpSuccess = {
                                 if (checkNetwork()) {
-                                    // Show the Terms dialog INSTEAD of navigating directly
-                                    showTermsDialog = true
+                                    navController.navigate("signup_verification")
                                 }
                             },
                             onLoginClick = { navController.navigate("login") }
@@ -339,13 +329,13 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-
+                    // ============================================
+                    //              ADMIN NAVIGATION
+                    // ============================================
 
                     composable("admin_home") {
-
                         val context = LocalContext.current
                         val sessionPrefs = remember { SessionPreferences(context) }
-
                         var adminName by remember { mutableStateOf("Admin") }
 
                         LaunchedEffect(Unit) {
@@ -356,20 +346,83 @@ class MainActivity : ComponentActivity() {
                         HomeAdminPage(
                             adminName = adminName,
                             onNavSelected = { route ->
-                                navController.navigate("admin_$route") {
-                                    popUpTo("admin_home") { inclusive = false }
+                                val destination = when (route) {
+                                    "dashboard" -> "admin_home"
+                                    "requests" -> "admin_requests"
+                                    "notifications" -> "admin_notifications"
+                                    "logs" -> "admin_logs"
+                                    "profile" -> "admin_profile"
+                                    else -> "admin_home"
+                                }
+
+                                if (destination != "admin_home") {
+                                    navController.navigate(destination) {
+                                        popUpTo("admin_home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
                                 }
                             }
                         )
+                    }
 
-                    }
                     composable("admin_requests") {
-                        RequestsAdminPage(onNavSelected = { route ->
-                            navController.navigate("admin_$route") {
-                                popUpTo("admin_home") { inclusive = false }
+                        RequestsAdminPage(
+                            onNavSelected = { route ->
+                                val destination = when (route) {
+                                    "dashboard" -> "admin_home"
+                                    "requests" -> "admin_requests"
+                                    "notifications" -> "admin_notifications"
+                                    "logs" -> "admin_logs"
+                                    "profile" -> "admin_profile"
+                                    else -> "admin_home"
+                                }
+
+                                if (destination != "admin_requests") {
+                                    navController.navigate(destination) {
+                                        popUpTo("admin_home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
                             }
-                        }) // Corrected: only passing the valid 'onNavSelected' parameter
+                        )
                     }
+
+                    // --- NEW ADMIN PROFILE ROUTE ---
+                    composable("admin_profile") {
+                        AdminProfileScreen(
+                            onNavSelected = { route ->
+                                // Standard Admin Navigation logic to switch tabs
+                                val destination = when (route) {
+                                    "dashboard" -> "admin_home"
+                                    "requests" -> "admin_requests"
+                                    "notifications" -> "admin_notifications"
+                                    "logs" -> "admin_logs"
+                                    "profile" -> "admin_profile"
+                                    else -> "admin_home"
+                                }
+
+                                // Navigate only if we are changing screens
+                                if (destination != "admin_profile") {
+                                    navController.navigate(destination) {
+                                        popUpTo("admin_home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            onLogout = {
+                                scope.launch {
+                                    sessionPrefs.clearSession()
+                                    navController.navigate("landing") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    // ============================================
+                    //             BORROWER NAVIGATION
+                    // ============================================
 
                     composable("home") {
                         val context = LocalContext.current
@@ -393,13 +446,21 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // --- 3. ADD NOTIFICATION ROUTE HERE ---
+                    composable("notifications") {
+                        NotificationPage(
+                            onNavSelected = { route ->
+                                if (checkNetwork()) navController.navigate(route)
+                            }
+                        )
+                    }
+
 
                     composable("catalog") {
 
                         val homeViewModel: HomeViewModel = viewModel()
 
                         CatalogScreen(
-
                             onNavSelected = { route ->
                                 if (checkNetwork()) navController.navigate(route)
                             },
@@ -418,33 +479,21 @@ class MainActivity : ComponentActivity() {
 
                     composable("apparatus") {
                         ApparatusScreen(
-                            onNavSelected = { route ->
-                                if (checkNetwork()) navController.navigate(
-                                    route
-                                )
-                            },
+                            onNavSelected = { route -> if (checkNetwork()) navController.navigate(route) },
                             onBackClicked = { navController.popBackStack() }
                         )
                     }
 
                     composable("chemicals") {
                         ChemicalScreen(
-                            onNavSelected = { route ->
-                                if (checkNetwork()) navController.navigate(
-                                    route
-                                )
-                            },
+                            onNavSelected = { route -> if (checkNetwork()) navController.navigate(route) },
                             onBackClicked = { navController.popBackStack() }
                         )
                     }
 
                     composable("slides") {
                         SlidesScreen(
-                            onNavSelected = { route ->
-                                if (checkNetwork()) navController.navigate(
-                                    route
-                                )
-                            },
+                            onNavSelected = { route -> if (checkNetwork()) navController.navigate(route) },
                             onBackClicked = { navController.popBackStack() }
                         )
                     }
@@ -481,9 +530,7 @@ class MainActivity : ComponentActivity() {
                             onDecreaseQuantity = onDecreaseQuantityReserve,
                             onRemoveItem = onRemoveItemReserve,
                             onNavSelected = { route ->
-                                if (checkNetwork()) navController.navigate(
-                                    route
-                                )
+                                if (checkNetwork()) navController.navigate(route)
                             },
                             onBackClicked = { navController.popBackStack() },
                             onViewSelectedClicked = {
@@ -504,9 +551,7 @@ class MainActivity : ComponentActivity() {
                             onDecreaseQuantity = onDecreaseQuantityLoan,
                             onRemoveItem = onRemoveItemLoan,
                             onNavSelected = { route ->
-                                if (checkNetwork()) navController.navigate(
-                                    route
-                                )
+                                if (checkNetwork()) navController.navigate(route)
                             },
                             onBackClicked = { navController.popBackStack() },
                             onViewSelectedClicked = {
@@ -533,14 +578,10 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // ... inside NavHost, after the "logs" route ...
-
+                    // --- BORROWER PROFILE ---
                     composable("profile") {
-                        // 1. Get the context and session
                         val context = LocalContext.current
                         val sessionPrefs = remember { SessionPreferences(context) }
-
-                        // 2. Create a CoroutineScope to handle the suspend function
                         val scope = rememberCoroutineScope()
 
                         ProfileScreen(
@@ -548,15 +589,10 @@ class MainActivity : ComponentActivity() {
                                 if (checkNetwork()) navController.navigate(route)
                             },
                             onLogout = {
-                                // 3. Launch a coroutine to clear the session
                                 scope.launch {
-                                    sessionPrefs.clearSession() // Use the correct function name
-
-                                    // 4. Navigate to Landing and wipe back stack
+                                    sessionPrefs.clearSession()
                                     navController.navigate("landing") {
-                                        popUpTo(0) {
-                                            inclusive = true
-                                        }
+                                        popUpTo(0) { inclusive = true }
                                     }
                                 }
                             }
@@ -596,38 +632,6 @@ class MainActivity : ComponentActivity() {
                         )
 
                     }
-                }
-
-                // --- DIALOG LOGIC (Terms -> Privacy -> Verification) ---
-
-                // 1. TERMS AND CONDITIONS
-                if (showTermsDialog) {
-                    TermsAndConditionsDialog(
-                        onNextClicked = {
-                            showTermsDialog = false
-                            // Navigate to Privacy Policy next
-                            showPrivacyDialog = true
-                        },
-                        onDismiss = {
-                            showTermsDialog = false
-                        }
-                    )
-                }
-
-                // 2. PRIVACY POLICY
-                if (showPrivacyDialog) {
-                    PrivacyPolicyDialog(
-                        onAgreeClicked = {
-                            showPrivacyDialog = false
-                            // User agreed to both, NOW go to verification
-                            navController.navigate("signup_verification")
-                        },
-                        onDismiss = {
-                            // If back/dismiss is allowed, go back to Terms
-                            showPrivacyDialog = false
-                            showTermsDialog = true
-                        }
-                    )
                 }
             }
         }

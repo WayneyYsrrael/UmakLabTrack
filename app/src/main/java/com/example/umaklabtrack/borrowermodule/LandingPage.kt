@@ -99,7 +99,7 @@ fun LandingPage(
             Spacer(modifier = Modifier.height(5.dp))
 
             Text(
-                text = "Know what’s available, reserve what you need, and get\nback to doing science.",
+                text = "Know what’s available, reserve what you need, and dive\nback in.",
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontFamily = poppins,

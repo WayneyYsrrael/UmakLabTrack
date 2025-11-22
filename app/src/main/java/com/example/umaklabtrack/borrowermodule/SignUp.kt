@@ -49,6 +49,15 @@ fun SignUpScreen(
         LaunchedEffect(Unit) { showContent = true }
     }
 
+    // --- NEW: Loading State ---
+    var isLoading by remember { mutableStateOf(false) }
+    // --------------------------
+
+    // --- DIALOG STATES ---
+    var showTermsAndConditionsDialog by remember { mutableStateOf(false) }
+    var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
+    // ---------------------
+
     var lastName by remember { mutableStateOf("") }
     var firstName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -83,6 +92,9 @@ fun SignUpScreen(
     }
 
     fun validateForm() {
+        // Prevent running if already loading
+        if (isLoading) return
+
         lastNameError = lastName.isBlank()
         firstNameError = firstName.isBlank()
         emailError = email.isBlank() || !email.endsWith("@umak.edu.ph", ignoreCase = false)
@@ -90,71 +102,71 @@ fun SignUpScreen(
         passwordError = password.isBlank() || password.length < 8 || !password.any { it.isDigit() }
         confirmPasswordError = confirmPassword.isBlank() || confirmPassword != password
 
-        when {
-            listOf(
-                lastNameError,
-                firstNameError,
-                emailError,
-                contactError,
-                passwordError,
-                confirmPasswordError
-            ).any { it } -> {
-                when {
-                    lastName.isBlank() || firstName.isBlank() ||
-                            email.isBlank() || contactNumber.isBlank() ||
-                            password.isBlank() || confirmPassword.isBlank() -> {
-                        showToast("Warning!", "Please fill all required fields.", "warning")
-                    }
-                    !email.endsWith("@umak.edu.ph", ignoreCase = false) -> {
-                        showToast("Warning!", "Please use your UMak email.", "warning")
-                    }
-                    contactNumber.length != 11 -> {
-                        showToast("Warning!", "Contact number must be 11 digits.", "warning")
-                    }
-                    password.length < 8 || !password.any { it.isDigit() } -> {
-                        showToast("Warning!", "Password must contain 8 chars & a number.", "warning")
-                    }
-                    password != confirmPassword -> {
-                        showToast("Oops!", "Passwords do not match!", "error")
-                    }
+        val hasError = listOf(
+            lastNameError, firstNameError, emailError,
+            contactError, passwordError, confirmPasswordError
+        ).any { it }
+
+        if (hasError) {
+            when {
+                lastName.isBlank() || firstName.isBlank() ||
+                        email.isBlank() || contactNumber.isBlank() ||
+                        password.isBlank() || confirmPassword.isBlank() -> {
+                    showToast("Warning!", "Please fill all required fields.", "warning")
+                }
+                !email.endsWith("@umak.edu.ph", ignoreCase = false) -> {
+                    showToast("Warning!", "Please use your UMak email.", "warning")
+                }
+                contactNumber.length != 11 -> {
+                    showToast("Warning!", "Contact number must be 11 digits.", "warning")
+                }
+                password.length < 8 || !password.any { it.isDigit() } -> {
+                    showToast("Warning!", "Password must contain 8 chars & a number.", "warning")
+                }
+                password != confirmPassword -> {
+                    showToast("Oops!", "Passwords do not match!", "error")
                 }
             }
-            else -> {
-                val validator = CredentialsValidation()
-                val newUser = User(
-                    name = "$firstName $lastName",
-                    email = email,
-                    contact=contactNumber,
-                    hashedPassword = validator.hashPassword(password)
-                )
-                UserSession.name = newUser.name
-                UserSession.email = newUser.email
-                UserSession.hashedPassword=newUser.hashedPassword
-                UserSession.cNum=newUser.contact
+            return // Stop here if there are local validation errors
+        }
 
-                coroutineScope.launch {
+        // --- START LOADING ---
+        isLoading = true
 
-                    val emailDuplicate = validator.isEmailDuplicate(newUser)
+        val validator = CredentialsValidation()
+        val newUser = User(
+            name = "$firstName $lastName",
+            email = email,
+            contact=contactNumber,
+            hashedPassword = validator.hashPassword(password)
+        )
+        UserSession.name = newUser.name
+        UserSession.email = newUser.email
+        UserSession.hashedPassword=newUser.hashedPassword
+        UserSession.cNum=newUser.contact
 
-                    if (emailDuplicate) {
-                        emailError = true
-                        showToast("Oops!", "Email Already taken!", "error")
+        coroutineScope.launch {
+            try {
+                val emailDuplicate = validator.isEmailDuplicate(newUser)
+
+                if (emailDuplicate) {
+                    emailError = true
+                    isLoading = false // Stop loading
+                    showToast("Oops!", "Email Already taken!", "error")
+                } else {
+                    if(validator.signInWithEmailOtp(newUser)) {
+                        isLoading = false // Stop loading on success
+                        showTermsAndConditionsDialog = true
                     } else {
-                        try {
-                            if(validator.signInWithEmailOtp(newUser)) {
-                                showToast("Success!", "Successfully Registered!", "success")
-                                coroutineScope.launch {
-                                    delay(2000)
-                                    onSignUpSuccess()
-                                }
-                            }
-                        } catch (e: Exception) {
-                            println("Error sending OTP: ${e.message}")
-                            e.printStackTrace()
-                        }
+                        isLoading = false // Stop loading on failure
+                        showToast("Error", "Failed to initiate sign up.", "error")
                     }
                 }
-
+            } catch (e: Exception) {
+                isLoading = false // Stop loading on crash
+                println("Error sending OTP: ${e.message}")
+                e.printStackTrace()
+                showToast("Error", "An unexpected error occurred.", "error")
             }
         }
     }
@@ -264,11 +276,14 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    // --- MODIFIED BUTTON WITH LOADING ---
                     Button(
-                        onClick = { coroutineScope.launch { validateForm() } },
+                        onClick = { validateForm() },
+                        enabled = !isLoading, // Disable button when loading
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFFD740),
-                            contentColor = Color.Black
+                            contentColor = Color.Black,
+                            disabledContainerColor = Color(0xFFFFD740).copy(alpha = 0.6f)
                         ),
                         shape = RoundedCornerShape(8.dp),
                         elevation = ButtonDefaults.buttonElevation(
@@ -279,8 +294,17 @@ fun SignUpScreen(
                             .fillMaxWidth(0.9f)
                             .height(46.dp)
                     ) {
-                        Text("SIGN UP", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.Black,
+                                strokeWidth = 3.dp
+                            )
+                        } else {
+                            Text("SIGN UP", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                     }
+                    // -----------------------------------
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -303,6 +327,39 @@ fun SignUpScreen(
                             .clickable { onLoginClick() }
                     )
                 }
+            }
+
+            // --- DIALOGS SECTION ---
+
+            // 1. Terms and Conditions Dialog
+            if (showTermsAndConditionsDialog) {
+                TermsAndConditionsDialog(
+                    onNextClicked = {
+                        showTermsAndConditionsDialog = false
+                        showPrivacyPolicyDialog = true // Proceed to Privacy Policy
+                    },
+                    onDismiss = {
+                        showTermsAndConditionsDialog = false
+                    }
+                )
+            }
+
+            // 2. Privacy Policy Dialog
+            if (showPrivacyPolicyDialog) {
+                PrivacyPolicyDialog(
+                    onAgreeClicked = {
+                        showPrivacyPolicyDialog = false
+                        // SUCCESS: Now show toast and navigate
+                        showToast("Success!", "Successfully Registered!", "success")
+                        coroutineScope.launch {
+                            delay(2000)
+                            onSignUpSuccess()
+                        }
+                    },
+                    onDismiss = {
+                        showPrivacyPolicyDialog = false
+                    }
+                )
             }
         }
     }
@@ -450,4 +507,3 @@ fun ToastBox(type: String, title: String, message: String) {
 fun SignUpPreview() {
     SignUpScreen(previewMode = true)
 }
-

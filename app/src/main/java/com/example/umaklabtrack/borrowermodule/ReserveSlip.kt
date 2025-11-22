@@ -1,92 +1,43 @@
 package com.example.umaklabtrack.borrowermodule
 
-import android.icu.text.SimpleDateFormat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-// --- NEW IMPORTS ---
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.PaddingValues
-// --- END NEW IMPORTS ---
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-// --- NEW IMPORTS ---
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-// --- END NEW IMPORTS ---
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DatePickerState
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-// --- REMOVED IMPORTS ---
-// import androidx.compose.material3.TimePicker
-// import androidx.compose.material3.TimePickerLayoutType
-// import androidx.compose.material3.TimePickerState
-// import androidx.compose.material3.rememberTimePickerState
-// --- END REMOVED IMPORTS ---
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-// --- NEW IMPORTS ---
-import androidx.compose.runtime.derivedStateOf
-// --- END NEW IMPORTS ---
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.RemoveCircle
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-// --- NEW IMPORTS ---
 import androidx.compose.ui.platform.LocalDensity
-// --- END NEW IMPORTS ---
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,19 +45,21 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.umaklabtrack.R
 import com.example.umaklabtrack.dataClasses.UserSession
+import com.example.umaklabtrack.entityManagement.ItemManage
 import com.example.umaklabtrack.preferences.SessionPreferences
 import com.example.umaklabtrack.ui.theme.poppins
-import java.util.Calendar
-import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-// --- NEW IMPORTS ---
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import kotlin.math.roundToInt
-// --- END NEW IMPORTS ---
 
-// --- NEW: Define constants for the picker geometry ---
+// --- Constants for the Wheel Picker ---
 private val ITEM_HEIGHT = 48.dp
 private val VISIBLE_ITEMS = 3
+
+val itmReserve = ItemManage()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,7 +68,7 @@ fun ReservationInformationSlipDialog(
     onGoBack: () -> Unit,
     onConfirm: (subject: String, college: String, section: String) -> Unit
 ) {
-    // --- Toast logic (Omitted for brevity, kept as is) ---
+    // --- Toast logic ---
     var toastMessage by remember { mutableStateOf("") }
     var toastTitle by remember { mutableStateOf("") }
     var showToast by remember { mutableStateOf(false) }
@@ -128,12 +81,13 @@ fun ReservationInformationSlipDialog(
         toastType = type
         showToast = true
         coroutineScope.launch {
-            delay(2000)
+            delay(3000)
             if (toastType == "warning") {
                 showToast = false
             }
         }
     }
+
     val context = LocalContext.current
     val sessionPrefs = remember { SessionPreferences(context) }
     var professorName by remember { mutableStateOf("Prof. Name") }
@@ -142,29 +96,44 @@ fun ReservationInformationSlipDialog(
         val user = sessionPrefs.loadSession()
         professorName = user.name ?: "Prof. Name"
     }
-    // --- State Management (Omitted for brevity, kept as is) ---
+
+    // --- State Management ---
     var subject by remember { mutableStateOf("") }
     var college by remember { mutableStateOf("") }
     var yearAndSection by remember { mutableStateOf("") }
 
-    // --- Date/Time State ---
-    var scheduledPickUp by remember { mutableStateOf("") }
-    var returnBy by remember { mutableStateOf("") }
+    // --- Student List Management ---
+    val studentList = remember { mutableStateListOf<String>() }
+    var showAddStudentDialog by remember { mutableStateOf(false) }
+    var showRemoveStudentDialog by remember { mutableStateOf(false) }
+    var studentToRemove by remember { mutableStateOf("") }
+
+    // --- DATE & TIME STATE ---
+    var scheduledPickUpStr by remember { mutableStateOf("") }
+    var returnByStr by remember { mutableStateOf("") }
+
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    val datePickerState = rememberDatePickerState()
-    // --- REMOVED: val timePickerState = rememberTimePickerState(is24Hour = false) ---
-    // --- End Date/Time State ---
+    // Flag to know which field is being edited
+    var isSelectingPickUp by remember { mutableStateOf(true) }
 
-    // --- Other states (Omitted for brevity, kept as is) ---
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
     val requestDateTime = remember {
-        Calendar.getInstance().formatDateTime("MMMM dd, yyyy - hh:mm a")
+        val cal = Calendar.getInstance()
+        val sdf = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault())
+        sdf.format(cal.time)
     }
+
+    // --- Error States ---
     var subjectError by remember { mutableStateOf(false) }
     var collegeError by remember { mutableStateOf(false) }
     var yearAndSectionError by remember { mutableStateOf(false) }
     var scheduledPickUpError by remember { mutableStateOf(false) }
+    var returnByError by remember { mutableStateOf(false) } // New Error State
+    var studentListError by remember { mutableStateOf(false) }
+
+    // --- Dropdown Data ---
     val allColleges = listOf(
         "College of Computing and Information Sciences (CCIS)",
         "Institute of Pharmacy (IOP)",
@@ -187,7 +156,7 @@ fun ReservationInformationSlipDialog(
         else -> allSections
     }
 
-    // --- MAIN DIALOG (Omitted for brevity, kept as is) ---
+    // --- MAIN DIALOG ---
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
@@ -198,15 +167,13 @@ fun ReservationInformationSlipDialog(
                 .background(Color.Black.copy(alpha = 0.6f)),
             contentAlignment = Alignment.Center
         ) {
-            // --- CLOSE BUTTON REMOVED FROM HERE ---
-
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier
                     .shadow(4.dp)
                     .width(350.dp)
-                    .heightIn(max = 620.dp) // Increased max height
+                    .heightIn(max = 750.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -246,16 +213,8 @@ fun ReservationInformationSlipDialog(
                                 )
                             )
                         }
-                        // --- CLOSE BUTTON ADDED HERE ---
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.align(Alignment.CenterEnd)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color(0xFF202020) // Changed color
-                            )
+                        IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
+                            Icon(Icons.Default.Close, "Close", tint = Color(0xFF202020))
                         }
                     }
 
@@ -263,9 +222,9 @@ fun ReservationInformationSlipDialog(
                     Divider(color = Color(0xFF182C55))
                     Spacer(Modifier.height(16.dp))
 
-                    // --- Form Fields (Omitted for brevity, kept as is) ---
+                    // --- Form Fields ---
                     FormSection(label = "Professor Name:") {
-                        Text(text="Prof. $professorName.", style = TextStyle(fontFamily = poppins, fontSize = 14.sp))
+                        Text(text = "Prof. $professorName", style = TextStyle(fontFamily = poppins, fontSize = 14.sp))
                     }
 
                     FormSection(label = "Subject:") {
@@ -313,52 +272,157 @@ fun ReservationInformationSlipDialog(
                         )
                     }
 
-                    FormSection(label = "Student Representatives Name:") {
-                        Text(
-                            text = "Names will appear once the COR is scanned.",
-                            style = TextStyle(
-                                fontFamily = poppins,
-                                fontSize = 14.sp,
-                                color = Color.Gray,
-                                lineHeight = 24.sp
-                            )
-                        )
+                    // --- STUDENT LIST SECTION ---
+                    FormSection(label = "Student Representatives:") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    width = if (studentListError) 2.dp else 0.dp,
+                                    color = if (studentListError) Color.Red else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(if (studentListError) 8.dp else 0.dp)
+                        ) {
+                            if (studentList.isEmpty()) {
+                                Text("Names will appear once added.", style = TextStyle(fontFamily = poppins, fontSize = 14.sp, color = Color.Gray))
+                            } else {
+                                studentList.forEach { studentName ->
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Icon(imageVector = Icons.Default.RemoveCircle, contentDescription = "Remove", tint = Color(0xFFDC3545), modifier = Modifier.size(24.dp).clickable { studentToRemove = studentName; showRemoveStudentDialog = true })
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = studentName, style = TextStyle(fontFamily = poppins, fontSize = 14.sp, color = Color(0xFF202020)))
+                                    }
+                                }
+                            }
+                        }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { showAddStudentDialog = true }, modifier = Modifier.fillMaxWidth().height(45.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF425275)), shape = RoundedCornerShape(6.dp)) {
+                        Text(text = "Add student", style = TextStyle(fontFamily = poppins, color = Color.White, fontSize = 14.sp))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     FormSection(label = "Date & Time of Reservation:") {
                         Text(requestDateTime, style = TextStyle(fontFamily = poppins, fontSize = 14.sp))
                     }
 
+                    // --- SCHEDULED PICK-UP (Calendar Icon) ---
                     FormSection(label = "Scheduled Pick-Up:") {
-                        DateTimePickerInput(
-                            text = scheduledPickUp,
-                            placeholder = "mm/dd/yy - 00:00 AM",
-                            onClick = {
-                                if (!showToast) showDatePicker = true // Show date picker
-                            },
-                            enabled = !showToast,
-                            isError = scheduledPickUpError
-                        )
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = scheduledPickUpStr,
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                placeholder = { Text("Select pick-up schedule", color = Color.Gray, fontFamily = poppins, fontSize = 14.sp) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(
+                                        width = if (scheduledPickUpError) 2.dp else 0.dp,
+                                        color = if (scheduledPickUpError) Color.Red else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    ),
+                                trailingIcon = { Icon(Icons.Default.DateRange, "Calendar", tint = Color.Gray) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    disabledTextColor = Color.Black,
+                                    disabledContainerColor = Color.White,
+                                    disabledBorderColor = Color(0xFFE0E0E0),
+                                    disabledPlaceholderColor = Color.Gray,
+                                    disabledTrailingIconColor = Color.Gray
+                                ),
+                                textStyle = TextStyle(fontFamily = poppins, fontSize = 14.sp),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clickable {
+                                        if (!showToast) {
+                                            isSelectingPickUp = true
+                                            showDatePicker = true
+                                        }
+                                    }
+                            )
+                        }
                     }
 
+                    // --- SHOULD BE RETURNED BY (Calendar Icon + Validation) ---
                     FormSection(label = "Should be Returned by:") {
-                        val returnText = if (returnBy.isEmpty()) "Please select pick up schedule first." else returnBy
-                        val returnColor = if (returnBy.isEmpty()) Color.Gray else Color.Black
-                        Text(
-                            returnText,
-                            style = TextStyle(
-                                fontFamily = poppins,
-                                fontSize = 14.sp,
-                                color = returnColor
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = returnByStr,
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                placeholder = { Text("Should be returned by", color = Color.Gray, fontFamily = poppins, fontSize = 14.sp) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    // RED BORDER IF ERROR
+                                    .border(
+                                        width = if (returnByError) 2.dp else 0.dp,
+                                        color = if (returnByError) Color.Red else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    ),
+                                // CALENDAR ICON
+                                trailingIcon = { Icon(Icons.Default.DateRange, "Calendar", tint = Color.Gray) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    disabledTextColor = Color.Black,
+                                    disabledContainerColor = Color.White,
+                                    disabledBorderColor = Color(0xFFE0E0E0),
+                                    disabledPlaceholderColor = Color.Gray,
+                                    disabledTrailingIconColor = Color.Gray
+                                ),
+                                textStyle = TextStyle(fontFamily = poppins, fontSize = 14.sp),
+                                shape = RoundedCornerShape(8.dp)
                             )
-                        )
+                            // MANUAL SELECTION CLICKABLE
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clickable {
+                                        if (!showToast) {
+                                            isSelectingPickUp = false
+                                            showDatePicker = true
+                                        }
+                                    }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // --- REMINDERS (Updated Text) ---
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Reminders:",
+                                style = TextStyle(
+                                    fontFamily = poppins,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color.Gray
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("1.Requests must be sent at least 3 days before the experiment date.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
+                            Text("2.Double-check all items and information before confirming.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
+                            Text("3.Reagent containers, bottles, and other apparatus must be returned to the Central Laboratory clean and dry.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
+                            Text("4.Replace any damaged or broken apparatus as soon as possible.", style = TextStyle(fontFamily = poppins, fontSize = 12.sp, color = Color.Gray))
+                        }
                     }
 
                     Spacer(Modifier.height(16.dp))
                     Divider(color = Color(0xFF182C55))
                     Spacer(Modifier.height(16.dp))
 
-                    // --- Confirm Button / Toast (Omitted for brevity, kept as is) ---
+                    // --- CONFIRM BUTTON ---
                     AnimatedVisibility(
                         visible = !showToast,
                         modifier = Modifier.fillMaxWidth(),
@@ -370,58 +434,28 @@ fun ReservationInformationSlipDialog(
                                 subjectError = subject.isEmpty()
                                 collegeError = college.isEmpty()
                                 yearAndSectionError = yearAndSection.isEmpty()
-                                scheduledPickUpError = scheduledPickUp.isEmpty()
+                                scheduledPickUpError = scheduledPickUpStr.isEmpty()
+                                returnByError = returnByStr.isEmpty() // Check return date
+                                studentListError = studentList.isEmpty()
 
-                                val sdf = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.US)
-                                val scheduledPickUpDate: Calendar? = try {
-                                    Calendar.getInstance().apply { time = sdf.parse(scheduledPickUp)!! }
-                                } catch (e: Exception) {
-                                    null
-                                }
-
-// Check if scheduledPickUp is at least 3 days from now
-                                val nowPlus3Days = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, 3) }
-
-                                val isDateValid = scheduledPickUpDate?.after(nowPlus3Days) ?: false
-
-                                val isFormValid = subject.isNotEmpty() &&
-                                        college.isNotEmpty() &&
-                                        yearAndSection.isNotEmpty() &&
-                                        scheduledPickUp.isNotEmpty() &&
-                                        isDateValid
+                                val isFormValid = !subjectError && !collegeError && !yearAndSectionError && !scheduledPickUpError && !returnByError && !studentListError
 
                                 if (isFormValid) {
-                                    showToast(
-                                        "Info!",
-                                        "Your reservation request has been sent. Please wait for approval.",
-                                        "info"
-                                    )
-                                    UserSession.yearSection=yearAndSection
-                                    UserSession.subject=subject
-                                    UserSession.college=college
-                                    UserSession.pickup=scheduledPickUp
-                                    UserSession.room="0"
+                                    UserSession.college = college
+                                    UserSession.yearSection = yearAndSection
+                                    UserSession.subject = subject
+                                    UserSession.pickup = scheduledPickUpStr
+                                    UserSession.room = "0"
+
+                                    showToast("Info!", "Your reservation request has been sent.", "info")
+
                                     coroutineScope.launch {
                                         delay(2000)
                                         onConfirm(subject, college, yearAndSection)
                                     }
-
                                 } else {
-                                    if (!isDateValid && scheduledPickUp.isNotEmpty()) {
-                                        showToast(
-                                            "Warning!",
-                                            "Scheduled pick-up must be at least 3 days from today.",
-                                            "warning"
-                                        )
-                                    } else {
-                                        showToast(
-                                            "Warning!",
-                                            "Please fill all the required fields.",
-                                            "warning"
-                                        )
-                                    }
+                                    showToast("Warning!", "Please fill all the required fields.", "warning")
                                 }
-
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -442,7 +476,7 @@ fun ReservationInformationSlipDialog(
                         enter = fadeIn(animationSpec = tween(300)),
                         exit = fadeOut(animationSpec = tween(300, delayMillis = 300))
                     ) {
-                        ToastBoxesreserve(
+                        ToastBoxesReserve(
                             type = toastType,
                             title = toastTitle,
                             message = toastMessage
@@ -451,89 +485,104 @@ fun ReservationInformationSlipDialog(
                 }
             }
         }
-    } // <-- END OF MAIN DIALOG
+    }
 
-    // --- Date/Time pickers ---
+    // --- DATE PICKER ---
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     showDatePicker = false
-                    showTimePicker = true // Show Time Picker next
+                    showTimePicker = true
                 }) {
-                    Text("OK")
+                    Text("OK", color = Color(0xFF182C55))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = Color.Red)
                 }
             }
         ) {
-            androidx.compose.material3.DatePicker(state = datePickerState)
+            DatePicker(state = datePickerState)
         }
     }
 
-    // --- REPLACED: This now calls our new SpinnerTimePickerDialog ---
+    // --- CUSTOM TIME PICKER ---
     if (showTimePicker) {
         SpinnerTimePickerDialog(
             onDismiss = { showTimePicker = false },
             onConfirm = { hour, minute, amPm ->
                 val cal = Calendar.getInstance()
-                // Get the selected date
                 cal.timeInMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
 
-                // Set the selected time
                 val hourInt = hour.toInt()
-                // Calendar.HOUR is for 12-hour format. 12 AM/PM is 0.
                 cal.set(Calendar.HOUR, if (hourInt == 12) 0 else hourInt)
                 cal.set(Calendar.MINUTE, minute.toInt())
                 cal.set(Calendar.AM_PM, if (amPm == "AM") Calendar.AM else Calendar.PM)
 
-                // Set the final values
-                scheduledPickUp = cal.formatDateTime("MMM dd, yyyy - hh:mm a")
-                scheduledPickUpError = false // Clear error
+                val sdf = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault())
+                val formattedTime = sdf.format(cal.time)
 
-                // Calculate return time
-                cal.add(Calendar.HOUR_OF_DAY, 3)
-                returnBy = cal.formatDateTime("MMM dd, yyyy - hh:mm a")
-
+                if (isSelectingPickUp) {
+                    scheduledPickUpStr = formattedTime
+                    scheduledPickUpError = false
+                } else {
+                    returnByStr = formattedTime
+                    returnByError = false
+                }
                 showTimePicker = false
             }
         )
     }
+
+    // --- Add/Remove Student Dialogs ---
+    if (showAddStudentDialog) {
+        AddStudentDialog(
+            onDismiss = { showAddStudentDialog = false },
+            onAdd = { name ->
+                if (name.isNotBlank()) {
+                    studentList.add(name)
+                    studentListError = false
+                }
+                showAddStudentDialog = false
+            }
+        )
+    }
+    if (showRemoveStudentDialog) {
+        RemoveStudentDialog(studentName = studentToRemove, onDismiss = { showRemoveStudentDialog = false }, onRemove = { studentList.remove(studentToRemove); showRemoveStudentDialog = false })
+    }
 }
 
-// --- UPDATED COMPOSABLE: SpinnerTimePickerDialog ---
+// ==========================================
+// --- CUSTOM SPINNER TIME PICKER COMPONENTS ---
+// ==========================================
+
 @Composable
 private fun SpinnerTimePickerDialog(
     onDismiss: () -> Unit,
     onConfirm: (hour: String, minute: String, amPm: String) -> Unit
 ) {
-    // --- Define Colors based on theme ---
     val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) Color(0xFF2C2C2C) else Color.White // Darker gray for dialog
+    val bgColor = if (isDark) Color(0xFF2C2C2C) else Color.White
     val contentColor = if (isDark) Color.White else Color.Black
     val highlightColor = if (isDark) Color(0xFFFFCE3D) else Color(0xFF182C55)
     val unselectedColor = if (isDark) Color.Gray else Color.Gray
     val buttonColor = if (isDark) Color(0xFFFFCE3D) else Color(0xFF182C55)
 
-    // --- Define Time Options ---
     val hours = (1..12).map { "%02d".format(it) }
     val minutes = (0..59).map { "%02d".format(it) }
     val amPm = listOf("AM", "PM")
 
-    // --- State for selected items ---
     val currentHour = Calendar.getInstance().get(Calendar.HOUR).let { if (it == 0) 12 else it }
     var selectedHour by remember { mutableStateOf("%02d".format(currentHour)) }
     var selectedMinute by remember { mutableStateOf("%02d".format(Calendar.getInstance().get(Calendar.MINUTE))) }
     var selectedAmPm by remember { mutableStateOf(if (Calendar.getInstance().get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM") }
 
-    // --- Picker Geometry ---
     val itemHeight = ITEM_HEIGHT
     val pickerHeight = itemHeight * VISIBLE_ITEMS
-    val verticalPadding = (pickerHeight / 2) - (itemHeight / 2) // This is 48.dp
+    val verticalPadding = (pickerHeight / 2) - (itemHeight / 2)
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -545,7 +594,7 @@ private fun SpinnerTimePickerDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Select time",
+                    "Set start time",
                     style = TextStyle(
                         fontSize = 18.sp,
                         fontFamily = poppins,
@@ -561,7 +610,6 @@ private fun SpinnerTimePickerDialog(
                         .height(pickerHeight),
                     contentAlignment = Alignment.Center
                 ) {
-                    // --- The 3 Wheel Pickers ---
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
@@ -573,9 +621,7 @@ private fun SpinnerTimePickerDialog(
                             onItemSelected = { selectedHour = it },
                             highlightColor = highlightColor,
                             textColor = unselectedColor,
-                            modifier = Modifier.width(80.dp),
-                            itemHeight = itemHeight,
-                            visibleItems = VISIBLE_ITEMS
+                            modifier = Modifier.width(80.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
@@ -583,7 +629,6 @@ private fun SpinnerTimePickerDialog(
                             color = highlightColor,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
-                            // fontFamily = poppins // <-- REMOVED
                         )
                         Spacer(Modifier.width(8.dp))
                         WheelPicker(
@@ -592,9 +637,7 @@ private fun SpinnerTimePickerDialog(
                             onItemSelected = { selectedMinute = it },
                             highlightColor = highlightColor,
                             textColor = unselectedColor,
-                            modifier = Modifier.width(80.dp),
-                            itemHeight = itemHeight,
-                            visibleItems = VISIBLE_ITEMS
+                            modifier = Modifier.width(80.dp)
                         )
                         Spacer(Modifier.width(16.dp))
                         WheelPicker(
@@ -603,53 +646,33 @@ private fun SpinnerTimePickerDialog(
                             onItemSelected = { selectedAmPm = it },
                             highlightColor = highlightColor,
                             textColor = unselectedColor,
-                            modifier = Modifier.width(80.dp),
-                            itemHeight = itemHeight,
-                            visibleItems = VISIBLE_ITEMS
+                            modifier = Modifier.width(80.dp)
                         )
                     }
 
-                    // --- Divider Overlay ---
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(pickerHeight),
-                        verticalArrangement = Arrangement.Top // <-- Use Top
+                        modifier = Modifier.fillMaxWidth().height(pickerHeight),
+                        verticalArrangement = Arrangement.Top
                     ) {
-                        // Spacer to push the first divider down to the top of the centered item
-                        Spacer(modifier = Modifier.height(verticalPadding)) // 48.dp
+                        Spacer(modifier = Modifier.height(verticalPadding))
                         Divider(color = highlightColor.copy(alpha = 0.5f), thickness = 1.dp)
-
-                        // Spacer between the dividers, equal to the item height minus the dividers
-                        Spacer(modifier = Modifier.height(itemHeight - 2.dp)) // 46.dp
+                        Spacer(modifier = Modifier.height(itemHeight - 2.dp))
                         Divider(color = highlightColor.copy(alpha = 0.5f), thickness = 1.dp)
                     }
                 }
-                // --- End of Box ---
 
                 Spacer(Modifier.height(24.dp))
 
-                // --- Action Buttons ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(
-                            "CANCEL",
-                            color = buttonColor,
-                            fontWeight = FontWeight.Bold
-                            // fontFamily = poppins // <-- REMOVED
-                        )
+                        Text("CANCEL", color = buttonColor, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.width(16.dp))
                     TextButton(onClick = { onConfirm(selectedHour, selectedMinute, selectedAmPm) }) {
-                        Text(
-                            "OK",
-                            color = buttonColor,
-                            fontWeight = FontWeight.Bold
-                            // fontFamily = poppins // <-- REMOVED
-                        )
+                        Text("OK", color = buttonColor, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -657,7 +680,6 @@ private fun SpinnerTimePickerDialog(
     }
 }
 
-// --- UPDATED COMPOSABLE: WheelPicker ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WheelPicker(
@@ -674,23 +696,16 @@ private fun WheelPicker(
     val pickerHeight = itemHeight * visibleItems
     val verticalPadding = (pickerHeight / 2) - (itemHeight / 2)
 
-    // Find the initial index
     val initialIndex = items.indexOf(initialItem).coerceAtLeast(0)
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
 
-    // Get the selected index based on scroll
     val selectedIndex by remember {
         derivedStateOf {
-            if (listState.isScrollInProgress) {
-                -1 // Don't update while scrolling
-            } else {
-                (listState.firstVisibleItemIndex + (listState.firstVisibleItemScrollOffset / itemHeightPx).roundToInt())
-                    .coerceIn(0, items.lastIndex)
-            }
+            if (listState.isScrollInProgress) -1
+            else (listState.firstVisibleItemIndex + (listState.firstVisibleItemScrollOffset / itemHeightPx).roundToInt()).coerceIn(0, items.lastIndex)
         }
     }
 
-    // Report selection change when scrolling stops
     LaunchedEffect(selectedIndex) {
         if (selectedIndex != -1) {
             onItemSelected(items[selectedIndex])
@@ -705,21 +720,17 @@ private fun WheelPicker(
             flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
         ) {
             itemsIndexed(items) { index, item ->
-                // Check if this item is the one in the center
                 val isSelected = (index == selectedIndex)
-
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(itemHeight),
-                    contentAlignment = Alignment.Center // --- Set to Center ---
+                    modifier = Modifier.fillMaxWidth().height(itemHeight),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = item,
                         style = TextStyle(
                             fontFamily = poppins,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = if (isSelected) 22.sp else 20.sp, // <-- INCREASED FONT SIZE
+                            fontSize = if (isSelected) 22.sp else 20.sp,
                             color = if (isSelected) highlightColor else textColor
                         )
                     )
@@ -729,19 +740,8 @@ private fun WheelPicker(
     }
 }
 
+// --- HELPER COMPONENTS ---
 
-// --- Helper function to format date/time ---
-private fun Calendar.formatDateTime(pattern: String): String {
-    return try {
-        val sdf = SimpleDateFormat(pattern, Locale.US)
-        sdf.format(this.time)
-    } catch (e: Exception) {
-        "Invalid Date"
-    }
-}
-
-
-// --- Form Section ---
 @Composable
 private fun FormSection(label: String, content: @Composable () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
@@ -751,7 +751,6 @@ private fun FormSection(label: String, content: @Composable () -> Unit) {
     }
 }
 
-// --- Dropdown Input (Copied from previous file) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DropdownInput(
@@ -763,16 +762,10 @@ private fun DropdownInput(
     enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
-
     var animateError by remember { mutableStateOf(false) }
-    LaunchedEffect(isError) {
-        animateError = isError
-    }
+    LaunchedEffect(isError) { animateError = isError }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = !expanded }
-    ) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { if (enabled) expanded = !expanded }) {
         OutlinedTextField(
             value = selectedOption,
             onValueChange = {},
@@ -780,110 +773,26 @@ private fun DropdownInput(
             enabled = enabled,
             placeholder = { Text(placeholder, fontFamily = poppins, fontSize = 14.sp) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = Color(0xFFF5F5F5),
-                unfocusedBorderColor = Color(0xFFE0E0E0),
-                disabledContainerColor = Color(0xFFF5F5F5)
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor()
-                .border(
-                    width = if (animateError) 2.dp else 0.dp,
-                    color = if (animateError) Color.Red else Color.Transparent,
-                    shape = RoundedCornerShape(8.dp)
-                ),
+            colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color(0xFFF5F5F5), unfocusedBorderColor = Color(0xFFE0E0E0), disabledContainerColor = Color(0xFFF5F5F5)),
+            modifier = Modifier.fillMaxWidth().menuAnchor().border(width = if (animateError) 2.dp else 0.dp, color = if (animateError) Color.Red else Color.Transparent, shape = RoundedCornerShape(8.dp)),
             textStyle = TextStyle(fontFamily = poppins, fontSize = 14.sp, color = Color.Black),
             shape = RoundedCornerShape(8.dp)
         )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option, fontFamily = poppins, fontSize = 14.sp) },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    }
-                )
+                DropdownMenuItem(text = { Text(option, fontFamily = poppins, fontSize = 14.sp) }, onClick = { onOptionSelected(option); expanded = false })
             }
         }
     }
 }
 
-// --- DateTimePickerInput (New Composable for this file) ---
-// --- DateTimePickerInput (New Composable for this file) ---
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateTimePickerInput(
-    text: String,
-    placeholder: String,
-    onClick: () -> Unit,
-    enabled: Boolean,
-    isError: Boolean
-) {
-    var animateError by remember { mutableStateOf(false) }
-    LaunchedEffect(isError) {
-        animateError = isError
-    }
-
-    // --- THIS IS THE FIX ---
-    // We wrap the TextField in a Box to correctly handle the click.
-    Box(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled, // Pass 'enabled' to control the visual state (grayed out)
-            placeholder = { Text(placeholder, fontFamily = poppins, fontSize = 14.sp) },
-            // --- MOVED ICON TO THE RIGHT ---
-            trailingIcon = {
-                Icon(
-                    imageVector = Icons.Default.DateRange,
-                    contentDescription = "Select Date"
-                )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = Color(0xFFF5F5F5),
-                unfocusedBorderColor = Color(0xFFE0E0E0),
-                disabledContainerColor = Color(0xFFF5F5F5), // Ensure disabled state looks right
-                disabledTrailingIconColor = Color.Gray // Gray out icon when disabled
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = if (animateError) 2.dp else 0.dp,
-                    color = if (animateError) Color.Red else Color.Transparent,
-                    shape = RoundedCornerShape(8.dp)
-                ),
-            textStyle = TextStyle(fontFamily = poppins, fontSize = 14.sp, color = Color.Black),
-            shape = RoundedCornerShape(8.dp)
-        )
-
-        // Add a transparent, clickable overlay.
-        // This Box will receive the clicks, controlled by the 'enabled' flag.
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(enabled = enabled, onClick = onClick)
-        )
-    }
-}
-
-// --- ToastBox Composable (Copied from previous file) ---
-@Composable
-fun ToastBoxesreserve(type: String, title: String, message: String) {
+fun ToastBoxesReserve(type: String, title: String, message: String) {
     val (bgColor, iconRes) = when (type) {
         "info" -> Pair(Color(0xFF1288BF), R.drawable.alertcircle)
         "warning" -> Pair(Color(0xFFFFCE3D), R.drawable.alerttriangle)
         else -> Pair(Color(0xFFDC3545), R.drawable.xcircle)
     }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -908,11 +817,34 @@ fun ToastBoxesreserve(type: String, title: String, message: String) {
     }
 }
 
-// --- Preview ---
-@Preview(showBackground = true, showSystemUi = true)
+// --- ADD/REMOVE STUDENT DIALOGS ---
 @Composable
-fun ReservationInformationSlipDialogPreview() {
-    ReservationInformationSlipDialog(onDismiss = {}, onGoBack = {}, onConfirm = { s, c, sec ->
-        println("Confirm: $s, $c, $sec")
-    })
+fun AddStudentReserveDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, placeholder = { Text("Last Name, First Name", color = Color.Gray, fontSize = 14.sp) }, modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White, unfocusedBorderColor = Color(0xFFE0E0E0)), shape = RoundedCornerShape(8.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = { onAdd(name) }, modifier = Modifier.fillMaxWidth().height(45.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182C55)), shape = RoundedCornerShape(8.dp)) { Text("Add Student", fontWeight = FontWeight.Bold) }
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(45.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFDC3545)), shape = RoundedCornerShape(8.dp)) { Text("Cancel", color = Color(0xFFDC3545), fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
+}
+
+@Composable
+fun RemoveStudentReserveDialog(studentName: String, onDismiss: () -> Unit, onRemove: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = buildAnnotatedString { append("Do you really want to\nremove "); withStyle(style = SpanStyle(color = Color(0xFFDC3545))) { append("$studentName?") } }, textAlign = TextAlign.Center, style = TextStyle(fontSize = 16.sp, fontFamily = poppins, fontWeight = FontWeight.Medium, color = Color(0xFF202020)))
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(onClick = onRemove, modifier = Modifier.fillMaxWidth().height(45.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC3545)), shape = RoundedCornerShape(8.dp)) { Text("Remove", fontWeight = FontWeight.Bold) }
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(45.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFF182C55)), shape = RoundedCornerShape(8.dp)) { Text("Keep", color = Color(0xFF182C55), fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
 }

@@ -21,6 +21,9 @@ import com.example.umaklabtrack.R
 import com.example.umaklabtrack.ui.theme.AppColors
 import com.example.umaklabtrack.ui.theme.poppins
 
+// --- SHARED DATA CLASS (Put this here so all Admin screens can see it) ---
+data class AdminHomeNavItem(val label: String, val iconResId: Int)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeAdminPage(
@@ -30,7 +33,8 @@ fun HomeAdminPage(
     var selectedIndex by remember { mutableStateOf(0) }
 
     Scaffold(
-        topBar = { AdminTopHeaderBar() },
+        // Using the Blue Header Bar to match the screenshot
+        topBar = { AdminHeaderBar() },
         bottomBar = {
             AdminBottomNavigationBar(
                 selectedIndex = selectedIndex,
@@ -40,11 +44,10 @@ fun HomeAdminPage(
                         0 -> onNavSelected("dashboard")
                         1 -> onNavSelected("requests")
                         2 -> onNavSelected("notifications")
-                        3 -> onNavSelected("logs")
+                        3 -> onNavSelected("logs") // Maps to History in the UI
                         4 -> onNavSelected("profile")
                     }
                 }
-
             )
         },
         containerColor = Color.White
@@ -63,9 +66,7 @@ fun HomeAdminPage(
                 Image(
                     painter = painterResource(id = R.drawable.labtracklogo),
                     contentDescription = "UMak Logo",
-                    modifier = Modifier
-                        .width(100.dp)
-                        .height(100.dp),
+                    modifier = Modifier.size(100.dp),
                     contentScale = ContentScale.Fit
                 )
 
@@ -98,6 +99,8 @@ fun HomeAdminPage(
     }
 }
 
+// --- SHARED COMPONENTS (Make sure these are only defined ONCE in your package) ---
+
 @Composable
 fun AdminHeaderBar(modifier: Modifier = Modifier) {
     Row(
@@ -120,18 +123,17 @@ fun AdminHeaderBar(modifier: Modifier = Modifier) {
     }
 }
 
-// NOTE: This AdminBottomNavigationBar implementation is now present
-// in *both* HomeAdminPage.kt and RequestsAdminPage.kt for consistency.
 @Composable
 fun AdminBottomNavigationBar(
     selectedIndex: Int,
-    onItemSelected: (Int) -> Unit  // Remove @Composable here
+    onItemSelected: (Int) -> Unit
 ) {
+    // UPDATED: "Logs" is now "History"
     val items = listOf(
         AdminNavItem("Dashboard", R.drawable.dashboard),
         AdminNavItem("Requests", R.drawable.requestcheck),
         AdminNavItem("Notifications", R.drawable.notif),
-        AdminNavItem("Logs", R.drawable.logs),
+        AdminNavItem("History", R.drawable.logs), // Renamed per request
         AdminNavItem("Profile", R.drawable.profilenav)
     )
 
@@ -146,6 +148,7 @@ fun AdminBottomNavigationBar(
     ) {
         items.forEachIndexed { index, item ->
             val isSelected = selectedIndex == index
+            // Yellow for selected, White for unselected
             val backgroundColor = if (isSelected) Color(0xFFFFD600) else Color.White
 
             Column(
@@ -176,13 +179,4 @@ fun AdminBottomNavigationBar(
             }
         }
     }
-}
-
-// NOTE: This data class is now present in *both* files.
-data class AdminHomeNavItem(val label: String, val iconResId: Int)
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun HomeAdminPreview() {
-    HomeAdminPage()
 }

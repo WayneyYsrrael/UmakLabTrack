@@ -1,6 +1,8 @@
 package com.example.umaklabtrack.borrowermodule
 
-// import androidx.compose.material.icons.filled.Menu // <-- Import no longer needed
+// Added imports for the Toast message
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 // Import for the auto-close fix
 import androidx.compose.foundation.Image
@@ -56,7 +58,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 private val itemManager = ItemManage()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReserveScreen(
@@ -73,7 +77,10 @@ fun ReserveScreen(
     var selectedItemDialog: ItemDetails? by remember { mutableStateOf(null) }
     var sortOption by remember { mutableStateOf("Name A-Z") }
     var showSelectedItemsDialog by remember { mutableStateOf(false) }
-    var showInfoSlipDialog by remember { mutableStateOf(false) } // <-- 1. ADDED THIS STATE
+    var showInfoSlipDialog by remember { mutableStateOf(false) }
+
+    // --- 1. Get Context for Toast ---
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -101,7 +108,6 @@ fun ReserveScreen(
                 ReserveBanner(title = "Reserve")
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // --- MODIFICATION: Passing showImage parameter ---
                 when (category) {
                     "apparatus" -> {
                         ApparatusHeader(sortOption = sortOption, onSortChange = { sortOption = it })
@@ -112,7 +118,7 @@ fun ReserveScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = true // <-- ADDED
+                            showImage = true
                         )
                     }
                     "chemicals" -> {
@@ -124,7 +130,7 @@ fun ReserveScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = true // <-- ADDED
+                            showImage = true
                         )
                     }
                     "slides" -> {
@@ -136,7 +142,7 @@ fun ReserveScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = false // <-- ADDED (set to false)
+                            showImage = false
                         )
                     }
                     else -> {
@@ -162,11 +168,10 @@ fun ReserveScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = true // <-- ADDED
+                            showImage = true
                         )
                     }
                 }
-                // --- END OF MODIFICATION ---
             }
 
             if (selectedItems.isNotEmpty()) {
@@ -192,7 +197,6 @@ fun ReserveScreen(
             }
 
             if (selectedItemDialog != null) {
-                // This dialog is defined in Borrower.txt, so it will hide the box for slides
                 BorrowItemDetailsDialog(
                     item = selectedItemDialog!!,
                     isSelected = selectedItems.containsKey(selectedItemDialog!!.name),
@@ -209,26 +213,35 @@ fun ReserveScreen(
                         showSelectedItemsDialog = false
                     }
                 } else {
-                    // This dialog is defined in Borrower.txt, so it will hide the box for slides
                     SelectedItemsDialog(
                         selectedItems = itemsInCart,
                         itemQuantities = selectedItems,
                         headerSubtitle = "Reservation",
                         onDismiss = { showSelectedItemsDialog = false },
                         onRemoveItem = onRemoveItem,
-                        onIncreaseQuantity = onIncreaseQuantity,
+
+                        // --- 2. ADDED LIMIT LOGIC HERE (Limit: 20) ---
+                        onIncreaseQuantity = { itemName ->
+                            val currentQty = selectedItems[itemName] ?: 0
+                            if (currentQty < 20) {
+                                // If less than 20, proceed with increase
+                                onIncreaseQuantity(itemName)
+                            } else {
+                                // If 20 or more, show toast
+                                Toast.makeText(context, "Maximum quantity is 20", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        // ---------------------------------------------
+
                         onDecreaseQuantity = onDecreaseQuantity,
-                        // --- 2. UPDATED THIS LAMBDA ---
                         onNext = {
-                            showSelectedItemsDialog = false // Close cart
-                            showInfoSlipDialog = true       // Open slip
+                            showSelectedItemsDialog = false
+                            showInfoSlipDialog = true
                         }
-                        // --- END OF UPDATE ---
                     )
                 }
             }
 
-            // --- 3. ADDED THIS BLOCK TO SHOW THE SLIP ---
             if (showInfoSlipDialog) {
                 ReservationInformationSlipDialog(
                     onDismiss = {
@@ -236,7 +249,7 @@ fun ReserveScreen(
                     },
                     onGoBack = {
                         showInfoSlipDialog = false
-                        showSelectedItemsDialog = true // Re-open cart
+                        showSelectedItemsDialog = true
                     },
                     onConfirm = { subject, college, section ->
                         CoroutineScope(Dispatchers.IO).launch {
@@ -248,7 +261,6 @@ fun ReserveScreen(
                                 "Reserve",
                                 UserSession.room!!
                             )
-                            // Remove all items after insertion
                             withContext(Dispatchers.Main) {
                                 selectedItems.keys.forEach { itemName ->
                                     onRemoveItem(itemName)
@@ -259,12 +271,11 @@ fun ReserveScreen(
                     }
                 )
             }
-            // --- END OF NEW BLOCK ---
         }
     }
 }
 
-// --- DynamicReserveList (MODIFIED) ---
+// --- DynamicReserveList ---
 @Composable
 fun DynamicReserveList(
     items: List<ItemDetails>,
@@ -272,7 +283,7 @@ fun DynamicReserveList(
     selectedItems: Set<String>,
     onToggleSelect: (String) -> Unit,
     onItemClick: (ItemDetails) -> Unit,
-    showImage: Boolean // <-- ADDED PARAMETER
+    showImage: Boolean
 ) {
     val sortedList = when (sortOption) {
         "Name A-Z" -> items.sortedBy { it.name }
@@ -282,7 +293,7 @@ fun DynamicReserveList(
         "Unavailable" -> items.filter { !it.isAvailable }
             .sortedBy { it.name }
         "Available First" -> items.sortedByDescending { it.isAvailable }
-        else -> items.sortedBy { it.name } // Default to A-Z
+        else -> items.sortedBy { it.name }
     }
 
     Column(
@@ -292,8 +303,6 @@ fun DynamicReserveList(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         sortedList.forEach { item ->
-            // This function is defined in Borrower.txt
-            // It will check the item.type and hide the box for slides
             BorrowSelectItemCard(
                 item = item,
                 isSelected = selectedItems.contains(item.name),
@@ -304,7 +313,6 @@ fun DynamicReserveList(
         }
     }
 }
-// --- END OF MODIFICATION ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

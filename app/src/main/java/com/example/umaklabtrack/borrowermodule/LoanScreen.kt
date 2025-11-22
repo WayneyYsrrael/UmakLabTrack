@@ -1,6 +1,6 @@
 package com.example.umaklabtrack.borrowermodule
 
-// Import for the auto-close fix
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +57,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val itemManager = ItemManage()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoanScreen(
@@ -72,7 +74,8 @@ fun LoanScreen(
     var selectedItemDialog: ItemDetails? by remember { mutableStateOf(null) }
     var sortOption by remember { mutableStateOf("Name A-Z") }
     var showSelectedItemsDialog by remember { mutableStateOf(false) }
-    var showInfoSlipDialog by remember { mutableStateOf(false) } // <-- 1. STATE ADDED
+    var showInfoSlipDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = { LoanTopBar(onBackClicked = onBackClicked) },
@@ -94,7 +97,6 @@ fun LoanScreen(
                 LoanBanner(title = "Loan")
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // --- MODIFICATION: Passing showImage parameter ---
                 when (category) {
                     "apparatus" -> {
                         ApparatusHeader(sortOption = sortOption, onSortChange = { sortOption = it })
@@ -105,7 +107,7 @@ fun LoanScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = true // <-- ADDED
+                            showImage = true
                         )
                     }
                     "chemicals" -> {
@@ -117,7 +119,7 @@ fun LoanScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = true // <-- ADDED
+                            showImage = true
                         )
                     }
                     "slides" -> {
@@ -129,7 +131,7 @@ fun LoanScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = false // <-- ADDED (set to false)
+                            showImage = false
                         )
                     }
                     else -> {
@@ -155,11 +157,10 @@ fun LoanScreen(
                             selectedItems = selectedItems.keys,
                             onToggleSelect = onToggleSelect,
                             onItemClick = { selectedItemDialog = it },
-                            showImage = true // <-- ADDED
+                            showImage = true
                         )
                     }
                 }
-                // --- END OF MODIFICATION ---
             }
 
             if (selectedItems.isNotEmpty()) {
@@ -181,7 +182,6 @@ fun LoanScreen(
             }
 
             if (selectedItemDialog != null) {
-                // This dialog is defined in Borrower.txt, so it will hide the box for slides
                 BorrowItemDetailsDialog(
                     item = selectedItemDialog!!,
                     isSelected = selectedItems.containsKey(selectedItemDialog!!.name),
@@ -198,26 +198,30 @@ fun LoanScreen(
                         showSelectedItemsDialog = false
                     }
                 } else {
-                    // This dialog is defined in Borrower.txt, so it will hide the box for slides
                     SelectedItemsDialog(
                         selectedItems = itemsInCart,
                         itemQuantities = selectedItems,
                         headerSubtitle = "Loan",
                         onDismiss = { showSelectedItemsDialog = false },
                         onRemoveItem = onRemoveItem,
-                        onIncreaseQuantity = onIncreaseQuantity,
+                        onIncreaseQuantity = { itemName ->
+                            val currentQty = selectedItems[itemName] ?: 0
+                            if (currentQty < 20) {
+                                onIncreaseQuantity(itemName)
+                            } else {
+                                Toast.makeText(context, "Maximum quantity is 20", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         onDecreaseQuantity = onDecreaseQuantity,
-                        // --- 2. ONNEXT UPDATED ---
                         onNext = {
-                            showSelectedItemsDialog = false // Close cart
-                            showInfoSlipDialog = true       // Open slip
+                            showSelectedItemsDialog = false
+                            showInfoSlipDialog = true
                         }
                     )
                 }
             }
 
-            // --- 3. SLIP DIALOG ADDED ---
-            // --- 3. SLIP DIALOG ADDED ---
+            // --- DIALOG INTEGRATION ---
             if (showInfoSlipDialog) {
                 LoanInformationSlipDialog(
                     onDismiss = {
@@ -225,18 +229,18 @@ fun LoanScreen(
                     },
                     onGoBack = {
                         showInfoSlipDialog = false
-                        showSelectedItemsDialog = true // Re-open cart
+                        showSelectedItemsDialog = true
                     },
-                    // --- FIX: Added 'room' ---
-                    onConfirm = { subject, room, college, section ->
+                    // --- CHANGED: Only receiving subject and college now ---
+                    onConfirm = { subject, college ->
                         CoroutineScope(Dispatchers.IO).launch {
                             itemManager.insertBorrowerInfo(
-                                UserSession.subject!!,
-                                UserSession.college!!,
-                                UserSession.yearSection!!,
+                                subject,
+                                college,
+                                "", // Section Removed (Empty String)
                                 selectedItems,
                                 "Loan",
-                                UserSession.room!!
+                                UserSession.room ?: "0"
                             )
 
                             withContext(Dispatchers.Main) {
@@ -245,17 +249,15 @@ fun LoanScreen(
                                 }
                             }
                         }
-                        println("Confirmed: $subject, $room, $college, $section")
-                        showInfoSlipDialog = false // Close slip on confirm
+                        println("Confirmed: $subject, $college, Room: ${UserSession.room}")
+                        showInfoSlipDialog = false
                     }
                 )
             }
-            // --- END OF NEW BLOCK ---
         }
     }
 }
 
-// --- DynamicLoanList (MODIFIED) ---
 @Composable
 fun DynamicLoanList(
     items: List<ItemDetails>,
@@ -263,17 +265,15 @@ fun DynamicLoanList(
     selectedItems: Set<String>,
     onToggleSelect: (String) -> Unit,
     onItemClick: (ItemDetails) -> Unit,
-    showImage: Boolean // <-- ADDED PARAMETER
+    showImage: Boolean
 ) {
     val sortedList = when (sortOption) {
         "Name A-Z" -> items.sortedBy { it.name }
         "Name Z-A" -> items.sortedByDescending { it.name }
-        "Available" -> items.filter { it.isAvailable }
-            .sortedBy { it.name }
-        "Unavailable" -> items.filter { !it.isAvailable }
-            .sortedBy { it.name }
+        "Available" -> items.filter { it.isAvailable }.sortedBy { it.name }
+        "Unavailable" -> items.filter { !it.isAvailable }.sortedBy { it.name }
         "Available First" -> items.sortedByDescending { it.isAvailable }
-        else -> items.sortedBy { it.name } // Default to A-Z
+        else -> items.sortedBy { it.name }
     }
 
     Column(
@@ -281,8 +281,6 @@ fun DynamicLoanList(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         sortedList.forEach { item ->
-            // This function is defined in Borrower.txt
-            // It will check the item.type and hide the box for slides
             BorrowSelectItemCard(
                 item = item,
                 isSelected = selectedItems.contains(item.name),
@@ -293,7 +291,6 @@ fun DynamicLoanList(
         }
     }
 }
-// --- END OF MODIFICATION ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -335,21 +332,9 @@ fun LoanTopBar(onBackClicked: () -> Unit) {
                 .padding(horizontal = 8.dp),
             singleLine = true
         )
+    }
+}
 
-        // --- MODIFICATION: Removed Menu Icon ---
-        /*
-        IconButton(onClick = { /* TODO: Menu action */ }) {
-            Icon(
-                Icons.Default.Menu,
-                contentDescription = "Menu",
-                tint = Color.White,
-                modifier = Modifier.size(30.dp)
-            )
-        }
-        */
-        // --- END OF MODIFICATION ---
-    } // <- closes Row
-} // <- closes LoanTopBar
 @Composable
 fun LoanBanner(title: String) {
     Card(

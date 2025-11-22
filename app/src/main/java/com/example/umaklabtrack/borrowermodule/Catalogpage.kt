@@ -636,7 +636,7 @@ fun BottomNavigationBar(
         Triple("Home", R.drawable.home, "home"),
         Triple("Catalog", R.drawable.catalog, "catalog"),
         Triple("Notifications", R.drawable.notif, "notifications"),
-        Triple("Logs", R.drawable.logs, "logs"),
+        Triple("History", R.drawable.logs, "logs"),
         Triple("Profile", R.drawable.profile, "profile")
     )
 
