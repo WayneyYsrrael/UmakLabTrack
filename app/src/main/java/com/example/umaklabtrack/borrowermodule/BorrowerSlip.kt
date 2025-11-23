@@ -157,7 +157,8 @@ fun BorrowerInformationSlipDialog(
     // --- MAIN DIALOG ---
     Dialog(
         onDismissRequest = onDismiss,
-//        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+        // The '//' is removed below:
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Box(
             modifier = Modifier
@@ -170,7 +171,7 @@ fun BorrowerInformationSlipDialog(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier
                     .shadow(4.dp)
-                    .width(350.dp)
+                    .fillMaxWidth(0.95f) // <--- This makes it take 95% of the screen width
                     .heightIn(max = 750.dp)
             ) {
                 Column(
@@ -328,7 +329,7 @@ fun BorrowerInformationSlipDialog(
                                         color = if (returnDateError) Color.Red else Color.Transparent,
                                         shape = RoundedCornerShape(8.dp)
                                     ),
-                                trailingIcon = { Icon(Icons.Default.DateRange, "Calendar", tint = Color.Gray) },
+                                trailingIcon = { Icon(Icons.Default.AccessTime, "Time", tint = Color.Gray) },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     disabledTextColor = Color.Black,
                                     disabledContainerColor = Color.White,

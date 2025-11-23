@@ -1,6 +1,10 @@
 package com.example.umaklabtrack.borrowermodule
 
-import androidx.compose.foundation.BorderStroke
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,7 +21,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.*
@@ -38,6 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+// --- COIL (IMAGE LOADER) IMPORTS ---
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+// --- YOUR PROJECT IMPORTS ---
 import com.example.umaklabtrack.R
 import com.example.umaklabtrack.dataClasses.UserSession
 import com.example.umaklabtrack.preferences.SessionPreferences
@@ -57,6 +64,10 @@ fun ProfileScreen(
     var phoneNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
 
+    // --- State for Profile Image ---
+    // This variable holds the image path.
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
     // --- State for Dialogs ---
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showTermsDialog by remember { mutableStateOf(false) }
@@ -66,14 +77,52 @@ fun ProfileScreen(
     val sessionPrefs = remember { SessionPreferences(context) }
     val scope = rememberCoroutineScope()
 
-    // Load Session Data
+    // --- PHOTO PICKER LAUNCHER ---
+    // This handles opening the gallery and getting the result
+// In ProfileScreen.kt ...
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                imageUri = uri
+
+                // Permissions logic...
+                val flag = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                try {
+                    context.contentResolver.takePersistableUriPermission(uri, flag)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                // ✅ CRITICAL CHANGE: Wrap this in scope.launch because DataStore is async
+                scope.launch {
+                    sessionPrefs.saveProfileImage(uri.toString())
+                }
+            }
+        }
+    )
+    // --- LOAD DATA ON START ---
     LaunchedEffect(Unit) {
+        // Load Text Data
         val user = sessionPrefs.loadSession()
         val names = user.name?.split(" ") ?: listOf("User", "")
         firstName = names.firstOrNull() ?: ""
         lastName = names.drop(1).joinToString(" ")
         email = user.email ?: ""
         phoneNumber = user.cNum ?: ""
+
+        // Load Image Data
+        // This checks if we saved an image before and restores it
+        val savedUriString = sessionPrefs.getProfileImage()
+        if (!savedUriString.isNullOrEmpty()) {
+            try {
+                imageUri = Uri.parse(savedUriString)
+            } catch (e: Exception) {
+                // If the file was deleted or moved, reset to null
+                imageUri = null
+            }
+        }
     }
 
     Scaffold(
@@ -94,23 +143,49 @@ fun ProfileScreen(
 
             // --- 1. Profile Header (Picture + Name) ---
             Box(contentAlignment = Alignment.BottomEnd) {
-                Image(
-                    painter = painterResource(id = R.drawable.profile),
-                    contentDescription = "Profile Picture",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, AppColors.PrimaryDarkBlue, CircleShape)
-                        .background(Color.LightGray)
-                )
-                // Camera Icon Badge
+
+                // --- IMAGE DISPLAY LOGIC ---
+                if (imageUri != null) {
+                    // Case A: User has picked an image (Show it using Coil)
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUri)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Profile Picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, AppColors.PrimaryDarkBlue, CircleShape)
+                            .background(Color.LightGray)
+                    )
+                } else {
+                    // Case B: No image picked (Show Default from Resources)
+                    Image(
+                        painter = painterResource(id = R.drawable.profile),
+                        contentDescription = "Profile Picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, AppColors.PrimaryDarkBlue, CircleShape)
+                            .background(Color.LightGray)
+                    )
+                }
+
+                // --- CAMERA ICON (CLICKABLE) ---
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .background(AppColors.PrimaryDarkBlue, CircleShape)
                         .border(2.dp, Color.White, CircleShape)
-                        .clickable { /* TODO: Open Image Picker */ },
+                        .clickable {
+                            // ACTION: Open the Image Picker (Gallery)
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = "Edit Photo", tint = Color.White, modifier = Modifier.size(20.dp))
@@ -191,26 +266,26 @@ fun ProfileScreen(
                     phoneNumber = newPhone
                     email = newEmail
                     showEditProfileDialog = false
-                    // TODO: Save logic here
+                    // NOTE: If you want these text changes to persist, save them to SessionPreferences here too
                 }
             )
         }
 
-        // 2. Terms Dialog (No Buttons, Read Only)
+        // 2. Terms Dialog
         if (showTermsDialog) {
             SimpleScrollableDialog(
                 title = "Terms and Conditions",
                 onDismiss = { showTermsDialog = false },
-                content = { TermsContent() } // Injecting the Terms composable
+                content = { TermsContent() }
             )
         }
 
-        // 3. Privacy Dialog (No Buttons, Read Only)
+        // 3. Privacy Dialog
         if (showPrivacyDialog) {
             SimpleScrollableDialog(
                 title = "Privacy Policy",
                 onDismiss = { showPrivacyDialog = false },
-                content = { PrivacyContent() } // Injecting the Privacy composable
+                content = { PrivacyContent() }
             )
         }
     }
@@ -310,7 +385,7 @@ fun EditProfileDialog(
                     )
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.CenterEnd) // Pushes Close button to the right
+                        modifier = Modifier.align(Alignment.CenterEnd)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Close")
                     }
@@ -385,7 +460,7 @@ fun ProfileTextField(
 fun SimpleScrollableDialog(
     title: String,
     onDismiss: () -> Unit,
-    content: @Composable () -> Unit // Changed from String to Composable
+    content: @Composable () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -393,7 +468,7 @@ fun SimpleScrollableDialog(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 600.dp) // Slightly taller
+                .heightIn(max = 600.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 // --- CENTERED TITLE HEADER ---
@@ -408,7 +483,7 @@ fun SimpleScrollableDialog(
                     )
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.CenterEnd) // Pushes Close button to the right
+                        modifier = Modifier.align(Alignment.CenterEnd)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
                     }
@@ -419,7 +494,7 @@ fun SimpleScrollableDialog(
                 // Content Area
                 Column(
                     modifier = Modifier
-                        .weight(1f, fill = false) // Allow it to shrink if content is small
+                        .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState())
                         .padding(top = 16.dp)
                 ) {
@@ -535,7 +610,7 @@ private fun SectionTitle(text: String) {
     Text(
         text = text,
         fontWeight = FontWeight.Bold,
-        fontSize = 16.sp, // Slightly smaller than the full screen version for better dialog fit
+        fontSize = 16.sp,
         color = AppColors.TextDark,
         modifier = Modifier
             .fillMaxWidth()

@@ -14,15 +14,19 @@ data class SimpleUser(
 )
 
 object UserPrefsKeys {
-    val USER_ID = stringPreferencesKey("user_id")   // ✅ FIXED (was intPreferencesKey)
+    val USER_ID = stringPreferencesKey("user_id")
     val NAME = stringPreferencesKey("name")
     val EMAIL = stringPreferencesKey("email")
     val CNUM = stringPreferencesKey("cnum")
-
     val ROLE = stringPreferencesKey("role")
+
+    // ✅ ADDED: Key for the profile picture
+    val PROFILE_IMAGE = stringPreferencesKey("profile_image")
 }
 
 class SessionPreferences(private val context: Context) {
+
+    // (This assumes you have the extension 'val Context.userPrefs' defined elsewhere in your project)
 
     suspend fun saveSession(
         userId: String,
@@ -43,7 +47,7 @@ class SessionPreferences(private val context: Context) {
     suspend fun loadSession(): SimpleUser {
         val prefs = context.userPrefs.data.first()
         return SimpleUser(
-            userId = prefs[UserPrefsKeys.USER_ID],          // String?
+            userId = prefs[UserPrefsKeys.USER_ID],
             name = prefs[UserPrefsKeys.NAME],
             email = prefs[UserPrefsKeys.EMAIL],
             cNum = prefs[UserPrefsKeys.CNUM],
@@ -60,4 +64,16 @@ class SessionPreferences(private val context: Context) {
         return prefs[UserPrefsKeys.USER_ID] != null
     }
 
+    // ✅ ADDED: Function to save the image URI
+    suspend fun saveProfileImage(uri: String) {
+        context.userPrefs.edit { prefs ->
+            prefs[UserPrefsKeys.PROFILE_IMAGE] = uri
+        }
+    }
+
+    // ✅ ADDED: Function to get the image URI
+    suspend fun getProfileImage(): String? {
+        val prefs = context.userPrefs.data.first()
+        return prefs[UserPrefsKeys.PROFILE_IMAGE]
+    }
 }

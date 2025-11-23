@@ -66,7 +66,7 @@ val itmLoan = ItemManage()
 fun LoanInformationSlipDialog(
     onDismiss: () -> Unit,
     onGoBack: () -> Unit,
-    onConfirm: (subject: String, college: String) -> Unit // Removed section parameter
+    onConfirm: (subject: String, college: String) -> Unit
 ) {
     // --- Toast logic ---
     var toastMessage by remember { mutableStateOf("") }
@@ -100,7 +100,7 @@ fun LoanInformationSlipDialog(
     // --- State Management ---
     var subject by remember { mutableStateOf("") }
     var college by remember { mutableStateOf("") }
-    var room by remember { mutableStateOf("") } // Added Room State
+    var room by remember { mutableStateOf("") }
 
     // --- Student List Management ---
     val studentList = remember { mutableStateListOf<String>() }
@@ -109,19 +109,19 @@ fun LoanInformationSlipDialog(
     var studentToRemove by remember { mutableStateOf("") }
 
     // --- DATE & TIME STATE ---
-    val calendar = Calendar.getInstance()
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault())
 
-    // Initial Loan time = Now
-    var loanDateTimeStr by remember { mutableStateOf(dateFormat.format(calendar.time)) }
-    // Return time = Empty (User must select)
-    var returnDateTimeStr by remember { mutableStateOf("") }
+    // 1. Initial Loan time = Empty (User chooses freely)
+    var loanDateTimeStr by remember { mutableStateOf("") }
+
+    // 2. Return time = FIXED to May 17, 2025
+    var returnDateTimeStr by remember { mutableStateOf("May 17, 2025 - 05:00 PM") }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var isChecked by remember { mutableStateOf(false) }
 
-    // Flag to know which field is being edited (Loan Time vs Return Time)
+    // Flag to know which field is being edited
+    // Since return time is fixed, we only ever edit Loan Time
     var isSelectingLoanTime by remember { mutableStateOf(true) }
 
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
@@ -132,6 +132,8 @@ fun LoanInformationSlipDialog(
     var roomError by remember { mutableStateOf(false) }
     var returnDateError by remember { mutableStateOf(false) }
     var studentListError by remember { mutableStateOf(false) }
+    // Added error state for Loan Date since it starts empty
+    var loanDateError by remember { mutableStateOf(false) }
 
     // --- Dropdown Data ---
     val allColleges = listOf(
@@ -167,7 +169,7 @@ fun LoanInformationSlipDialog(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier
                     .shadow(4.dp)
-                    .width(350.dp)
+                    .fillMaxWidth(0.95f)
                     .heightIn(max = 750.dp)
             ) {
                 Column(
@@ -251,7 +253,6 @@ fun LoanInformationSlipDialog(
                         )
                     }
 
-                    // --- ROOM FIELD (Renamed label to Room Number as implied by list) ---
                     FormSection(label = "Room Number:") {
                         DropdownInput(
                             options = allRooms,
@@ -298,22 +299,30 @@ fun LoanInformationSlipDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // --- DATE & TIME OF LOAN (Calendar Icon) ---
-                    FormSection(label = "Date & Time of Loan:") {
+                    // --- SCHEDULED PICK-UP (Editable, Starts Empty) ---
+                    FormSection(label = "Scheduled Pick-up:") {
                         Box(modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(
                                 value = loanDateTimeStr,
                                 onValueChange = {},
                                 readOnly = true,
                                 enabled = false,
-                                modifier = Modifier.fillMaxWidth(),
-                                // CALENDAR ICON
-                                trailingIcon = { Icon(Icons.Default.DateRange, "Calendar", tint = Color.Gray) },
+                                // Placeholder shows when empty
+                                placeholder = { Text("mm/dd/yy - 00:00 AM", color = Color.Gray, fontFamily = poppins, fontSize = 14.sp) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(
+                                        width = if (loanDateError) 2.dp else 0.dp,
+                                        color = if (loanDateError) Color.Red else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    ),
+                                trailingIcon = { Icon(Icons.Default.DateRange, "Calendar", tint = Color.Black) },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     disabledTextColor = Color.Black,
                                     disabledContainerColor = Color.White,
                                     disabledBorderColor = Color(0xFFE0E0E0),
-                                    disabledTrailingIconColor = Color.Gray
+                                    disabledPlaceholderColor = Color.Gray,
+                                    disabledTrailingIconColor = Color.Black
                                 ),
                                 textStyle = TextStyle(fontFamily = poppins, fontSize = 14.sp),
                                 shape = RoundedCornerShape(8.dp)
@@ -331,7 +340,7 @@ fun LoanInformationSlipDialog(
                         }
                     }
 
-                    // --- SHOULD BE RETURNED BY (Calendar Icon + Validation) ---
+                    // --- SHOULD BE RETURNED BY (Fixed: May 17, 2025, Read-Only, No Icon) ---
                     FormSection(label = "Should be Returned by:") {
                         Box(modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(
@@ -339,38 +348,17 @@ fun LoanInformationSlipDialog(
                                 onValueChange = {},
                                 readOnly = true,
                                 enabled = false,
-                                placeholder = { Text("Should be returned by", color = Color.Gray, fontFamily = poppins, fontSize = 14.sp) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    // RED BORDER IF ERROR
-                                    .border(
-                                        width = if (returnDateError) 2.dp else 0.dp,
-                                        color = if (returnDateError) Color.Red else Color.Transparent,
-                                        shape = RoundedCornerShape(8.dp)
-                                    ),
-                                // CALENDAR ICON
-                                trailingIcon = { Icon(Icons.Default.DateRange, "Calendar", tint = Color.Gray) },
+                                modifier = Modifier.fillMaxWidth(),
+                                // No Trailing Icon
                                 colors = OutlinedTextFieldDefaults.colors(
                                     disabledTextColor = Color.Black,
-                                    disabledContainerColor = Color.White,
-                                    disabledBorderColor = Color(0xFFE0E0E0),
-                                    disabledPlaceholderColor = Color.Gray,
-                                    disabledTrailingIconColor = Color.Gray
+                                    disabledContainerColor = Color(0xFFEBEBEB), // Gray background
+                                    disabledBorderColor = Color(0xFFE0E0E0)
                                 ),
                                 textStyle = TextStyle(fontFamily = poppins, fontSize = 14.sp),
                                 shape = RoundedCornerShape(8.dp)
                             )
-                            // MANUAL SELECTION CLICKABLE
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .clickable {
-                                        if (!showToast) {
-                                            isSelectingLoanTime = false
-                                            showDatePicker = true
-                                        }
-                                    }
-                            )
+                            // Not clickable
                         }
                     }
 
@@ -430,18 +418,17 @@ fun LoanInformationSlipDialog(
                             onClick = {
                                 subjectError = subject.isEmpty()
                                 collegeError = college.isEmpty()
-                                roomError = room.isEmpty() // Validate Room
-                                returnDateError = returnDateTimeStr.isEmpty()
+                                roomError = room.isEmpty()
+                                loanDateError = loanDateTimeStr.isEmpty()
                                 studentListError = studentList.isEmpty()
 
-                                val isFormValid = !subjectError && !collegeError && !roomError && !returnDateError && !studentListError
+                                val isFormValid = !subjectError && !collegeError && !roomError && !loanDateError && !studentListError
 
                                 if (isFormValid) {
                                     UserSession.college = college
                                     UserSession.subject = subject
                                     UserSession.room = room
-                                    UserSession.listStud=studentList
-
+                                    UserSession.listStud = studentList
 
                                     showToast("Info!", "Your loan request has been sent.", "info")
 
@@ -458,8 +445,7 @@ fun LoanInformationSlipDialog(
                                 .height(50.dp),
                             enabled = isChecked,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isChecked) Color(0xFF182C55) else Color(0xFF182C55).copy(alpha = 0.9f)
-                                , // active vs inactive color
+                                containerColor = if (isChecked) Color(0xFF182C55) else Color(0xFF182C55).copy(alpha = 0.9f),
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(10.dp)
@@ -524,11 +510,12 @@ fun LoanInformationSlipDialog(
                 val formattedTime = sdf.format(cal.time)
 
                 if (isSelectingLoanTime) {
+                    // Update Loan Date
                     loanDateTimeStr = formattedTime
-                } else {
-                    returnDateTimeStr = formattedTime
-                    returnDateError = false // Clear error
+                    loanDateError = false
                 }
+                // We do NOT update returnDateTimeStr here. It stays fixed to May 17.
+
                 showTimePicker = false
             }
         )

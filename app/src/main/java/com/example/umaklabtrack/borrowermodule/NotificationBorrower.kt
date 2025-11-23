@@ -1,9 +1,11 @@
 package com.example.umaklabtrack.borrowermodule
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -29,23 +32,23 @@ import com.example.umaklabtrack.ui.theme.poppins
 
 // 1. Data Model
 data class NotificationItem(
-    val sender: String, // e.g., "AdminName" or "System"
+    val sender: String,
     val message: String,
-    val isSystem: Boolean = false // You can use this to change icon logic if needed later
+    val isSystem: Boolean = false
 )
 
 @Composable
 fun NotificationPage(
     onNavSelected: (String) -> Unit = {}
 ) {
-    // 2. PREPARING THE DATA
-    // I extracted these texts exactly from your second image to match the design.
-
+    // 2. DATA PREPARATION
     val nov11Notifications = listOf(
         NotificationItem("AdminName", "Your request has been approved. Please proceed to the laboratory to claim your items."),
         NotificationItem("AdminName", "Your reservation request has been approved."),
         NotificationItem("AdminName", "Your loan request has been approved."),
-        NotificationItem("AdminName", "Your borrow request has been rejected.")
+        NotificationItem("AdminName", "Your borrow request has been rejected."),
+        // UPDATED: Use the pending message
+        NotificationItem("System", "Your request is now pending approval.")
     )
 
     val nov10Notifications = listOf(
@@ -55,31 +58,24 @@ fun NotificationPage(
         NotificationItem("System", "Your request is now pending approval.")
     )
 
-    // Extra examples from your second image (Available for use)
-    val otherExamples = listOf(
-        NotificationItem("System", "Your borrowed equipment is due later today. Please return on time."),
-        NotificationItem("System", "Overdue Alert: You still have items that need to be returned."),
-        NotificationItem("AdminName", "Items has been successfully returned in good condition. Thank you!"),
-        NotificationItem("AdminName", "Condition Update: One of your returned items was marked as damaged."),
-        NotificationItem("AdminName", "A borrowed item is reported lost or missing. Please coordinate with the laboratory."),
-        NotificationItem("AdminName", "Damage Report: Please settle the replacement for the damaged item."),
-        NotificationItem("System", "Reminder: You have a scheduled reservation today."),
-        NotificationItem("AdminName", "Your rescheduling request has been approved."),
-        NotificationItem("AdminName", "Your rescheduling request has been rejected.")
-    )
-
-    // 3. GROUPING LOGIC
-    // This Map prevents "doubling". Key is the Date, Value is the List of notifications for that date.
     val groupedNotifications = mapOf(
         "November 11, 2025" to nov11Notifications,
         "November 10, 2025" to nov10Notifications,
-        // You can add "Earlier" here with the 'otherExamples' list if you want
     )
 
+    // 3. STATE FOR COLLAPSING/EXPANDING
+    // We use a Map to track which date strings are expanded.
+    // True = Open, False = Closed.
+    val expandedState = remember {
+        // Initialize all dates to TRUE (Open) by default
+        mutableStateMapOf<String, Boolean>().apply {
+            groupedNotifications.keys.forEach { put(it, true) }
+        }
+    }
+
     Scaffold(
-        topBar = { TopHeaderBar() }, // Reuses the Header from Home.kt
+        topBar = { TopHeaderBar() },
         bottomBar = {
-            // "notifications" route triggers the yellow active state
             BottomNavigationBar(selectedRoute = "notifications", onNavSelected = onNavSelected)
         },
         containerColor = Color.White
@@ -93,72 +89,94 @@ fun NotificationPage(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Page Title
             Text(
                 text = "Notifications",
                 fontFamily = poppins,
                 fontWeight = FontWeight.Bold,
-                fontSize = 22.sp, // Slightly larger title
+                fontSize = 22.sp,
                 color = AppColors.TextDark
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 4. LIST RENDERING
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp) // Spacing between items
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Iterate through the Map.
-                // key = Date String, value = List of items
                 groupedNotifications.forEach { (date, notifications) ->
 
-                    // A. Render the Date Header ONCE per group
+                    // Get current state (default to true if not found)
+                    val isExpanded = expandedState[date] ?: true
+
+                    // A. Header (Clickable)
                     item {
-                        DateHeader(date = date)
+                        DateHeader(
+                            date = date,
+                            isExpanded = isExpanded,
+                            onToggle = {
+                                // Toggle the boolean value for this date
+                                expandedState[date] = !isExpanded
+                            }
+                        )
                     }
 
-                    // B. Render the cards for that date
-                    items(notifications) { notification ->
-                        NotificationCardItem(notification)
-                        Spacer(modifier = Modifier.height(4.dp)) // Small gap between cards
+                    // B. Render items ONLY if expanded
+                    if (isExpanded) {
+                        items(notifications) { notification ->
+                            NotificationCardItem(notification)
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
                     }
 
-                    // C. Add a little extra space after a group finishes
+                    // C. Spacer between groups
                     item {
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
 
-                item {
-                    Spacer(modifier = Modifier.height(50.dp)) // Bottom padding for scrolling
-                }
+                item { Spacer(modifier = Modifier.height(50.dp)) }
             }
         }
     }
 }
 
 @Composable
-fun DateHeader(date: String) {
+fun DateHeader(
+    date: String,
+    isExpanded: Boolean,
+    onToggle: () -> Unit
+) {
+    // Simple animation to rotate the arrow
+    val rotationState by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "ArrowRotation"
+    )
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .clickable { /* Optional: Collapse logic could go here */ }
+            // Make the whole row clickable, removing the ripple effect if you want it cleaner
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null // Removes the gray click splash (optional)
+            ) { onToggle() }
     ) {
         Icon(
             imageVector = Icons.Default.KeyboardArrowDown,
-            contentDescription = "Expand",
-            tint = Color.Black, // Darker arrow as per screenshot
-            modifier = Modifier.size(24.dp)
+            contentDescription = "Expand/Collapse",
+            tint = Color.Black,
+            modifier = Modifier
+                .size(24.dp)
+                .rotate(rotationState) // Apply rotation animation
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = date,
             fontFamily = poppins,
             fontSize = 14.sp,
-            color = Color.Black, // Dark text for date
+            color = Color.Black,
             fontWeight = FontWeight.Medium
         )
     }
@@ -169,8 +187,8 @@ fun NotificationCardItem(notification: NotificationItem) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9F9F9)), // Very light gray/white background
-        border = BorderStroke(1.dp, Color(0xFFEEEEEE)), // Subtle border
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9F9F9)),
+        border = BorderStroke(1.dp, Color(0xFFEEEEEE)),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
@@ -179,9 +197,8 @@ fun NotificationCardItem(notification: NotificationItem) {
                 .fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            // Avatar
             Image(
-                painter = painterResource(id = R.drawable.profile), // Ensure this drawable exists
+                painter = painterResource(id = R.drawable.profile),
                 contentDescription = "Avatar",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -192,12 +209,11 @@ fun NotificationCardItem(notification: NotificationItem) {
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            // Content
             Column {
                 Text(
                     text = notification.sender,
                     fontFamily = poppins,
-                    fontWeight = FontWeight.Bold, // Bold Name
+                    fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = AppColors.TextDark
                 )
@@ -209,7 +225,7 @@ fun NotificationCardItem(notification: NotificationItem) {
                     fontFamily = poppins,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
-                    color = Color(0xFF555555), // Dark Gray text
+                    color = Color(0xFF555555),
                     lineHeight = 16.sp
                 )
             }

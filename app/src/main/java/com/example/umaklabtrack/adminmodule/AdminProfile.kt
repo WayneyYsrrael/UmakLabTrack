@@ -1,5 +1,10 @@
 package com.example.umaklabtrack.adminmodule
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+// --- COIL IMPORTS ---
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.umaklabtrack.R
 import com.example.umaklabtrack.preferences.SessionPreferences
 import com.example.umaklabtrack.ui.theme.AppColors
@@ -51,12 +59,51 @@ fun AdminProfileScreen(
     var phoneNumber by remember { mutableStateOf("09123456789") }
     var email by remember { mutableStateOf("rsibulo.a12345632@umak.edu.ph") }
 
+    // --- State for Profile Image ---
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
     // --- State for Dialogs ---
     var showEditProfileDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val sessionPrefs = remember { SessionPreferences(context) }
     val scope = rememberCoroutineScope()
+
+    // --- PHOTO PICKER LAUNCHER ---
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                // 1. Update UI
+                imageUri = uri
+
+                // 2. Grant Permanent Permission
+                val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                try {
+                    context.contentResolver.takePersistableUriPermission(uri, flag)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                // 3. Save to Preferences (Async)
+                scope.launch {
+                    sessionPrefs.saveProfileImage(uri.toString())
+                }
+            }
+        }
+    )
+
+    // --- LOAD SAVED IMAGE ON START ---
+    LaunchedEffect(Unit) {
+        val savedUriString = sessionPrefs.getProfileImage()
+        if (!savedUriString.isNullOrEmpty()) {
+            try {
+                imageUri = Uri.parse(savedUriString)
+            } catch (e: Exception) {
+                imageUri = null
+            }
+        }
+    }
 
     Scaffold(
         // 1. Use the REAL Blue Header from HomeAdminPage.kt
@@ -92,23 +139,49 @@ fun AdminProfileScreen(
 
             // --- 1. Profile Header (Picture + Name) ---
             Box(contentAlignment = Alignment.BottomEnd) {
-                Image(
-                    painter = painterResource(id = R.drawable.profile),
-                    contentDescription = "Profile Picture",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, AppColors.PrimaryDarkBlue, CircleShape)
-                        .background(Color.LightGray)
-                )
-                // Camera Icon Badge
+
+                // --- IMAGE DISPLAY LOGIC ---
+                if (imageUri != null) {
+                    // Show Selected Image
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUri)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Profile Picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, AppColors.PrimaryDarkBlue, CircleShape)
+                            .background(Color.LightGray)
+                    )
+                } else {
+                    // Show Default Resource
+                    Image(
+                        painter = painterResource(id = R.drawable.profile),
+                        contentDescription = "Profile Picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, AppColors.PrimaryDarkBlue, CircleShape)
+                            .background(Color.LightGray)
+                    )
+                }
+
+                // Camera Icon Badge (Clickable)
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .background(AppColors.PrimaryDarkBlue, CircleShape)
                         .border(2.dp, Color.White, CircleShape)
-                        .clickable { /* TODO: Open Image Picker */ },
+                        .clickable {
+                            // Launch Photo Picker
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = "Edit Photo", tint = Color.White, modifier = Modifier.size(20.dp))
@@ -341,6 +414,3 @@ fun ProfileTextField(
         )
     }
 }
-
-// NOTE: I have REMOVED the placeholder "AdminBottomNavigationBar" that was here.
-// The code now uses the one imported from com.example.umaklabtrack.adminmodule (HomeAdminPage.kt)

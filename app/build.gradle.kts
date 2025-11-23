@@ -51,6 +51,10 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("androidx.navigation:navigation-compose:2.9.5")
+
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("androidx.activity:activity-ktx:1.9.0")
     implementation(platform("io.github.jan-tennert.supabase:bom:3.2.6"))
     implementation("io.github.jan-tennert.supabase:auth-kt:3.2.6")
     implementation("io.github.jan-tennert.supabase:postgrest-kt:3.2.6")

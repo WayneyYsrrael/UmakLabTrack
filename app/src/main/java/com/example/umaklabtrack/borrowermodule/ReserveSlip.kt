@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.RemoveCircle
@@ -173,7 +174,7 @@ fun ReservationInformationSlipDialog(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier
                     .shadow(4.dp)
-                    .width(350.dp)
+                    .fillMaxWidth(0.95f) // <--- This makes it take 95% of the screen width
                     .heightIn(max = 750.dp)
             ) {
                 Column(
@@ -367,7 +368,7 @@ fun ReservationInformationSlipDialog(
                                         shape = RoundedCornerShape(8.dp)
                                     ),
                                 // CALENDAR ICON
-                                trailingIcon = { Icon(Icons.Default.DateRange, "Calendar", tint = Color.Gray) },
+                                trailingIcon = { Icon(Icons.Default.AccessTime, "Time", tint = Color.Gray) },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     disabledTextColor = Color.Black,
                                     disabledContainerColor = Color.White,

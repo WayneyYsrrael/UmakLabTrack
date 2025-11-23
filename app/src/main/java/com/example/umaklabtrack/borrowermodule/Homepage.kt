@@ -309,7 +309,7 @@ fun OngoingRequestCard(
                                 text = "Status: ${r.status}",
                                 fontFamily = poppins,
                                 fontSize = 12.sp,
-                                color = Color(0xFF1288BF)
+                                color = Color(0xFFFFA500)
                             )
                         }
 
