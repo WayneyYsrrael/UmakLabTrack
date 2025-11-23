@@ -157,7 +157,8 @@ fun BorrowerInformationSlipDialog(
     // --- MAIN DIALOG ---
     Dialog(
         onDismissRequest = onDismiss,
-//        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+        // The '//' is removed below:
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Box(
             modifier = Modifier
@@ -170,7 +171,7 @@ fun BorrowerInformationSlipDialog(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier
                     .shadow(4.dp)
-                    .width(350.dp)
+                    .fillMaxWidth(0.95f) // <--- This makes it take 95% of the screen width
                     .heightIn(max = 750.dp)
             ) {
                 Column(

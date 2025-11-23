@@ -28,6 +28,9 @@ import androidx.navigation.NavType
 import com.example.umaklabtrack.adminmodule.HomeAdminPage
 import com.example.umaklabtrack.adminmodule.RequestsAdminPage
 import com.example.umaklabtrack.adminmodule.AdminProfileScreen
+import com.example.umaklabtrack.adminmodule.NotificationAdminPage
+import com.example.umaklabtrack.adminmodule.AdminActivityLogsPage // <--- NEW IMPORT ADDED HERE
+
 // --------------------------------------------------
 import com.example.umaklabtrack.ui.theme.UMakLabTrackTheme
 import kotlinx.coroutines.delay
@@ -35,7 +38,7 @@ import kotlinx.coroutines.launch
 import com.example.umaklabtrack.preferences.SessionPreferences
 import com.example.umaklabtrack.dataClasses.UserSession
 
-// --- 1. IMPORT YOUR NOTIFICATION PAGE ---
+// --- IMPORT YOUR NOTIFICATION PAGE (Borrower) ---
 import com.example.umaklabtrack.borrowermodule.NotificationPage
 
 class MainActivity : ComponentActivity() {
@@ -47,7 +50,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         lifecycleScope.launch {
-//    sessionPrefs.clearSession()
             val userLoggedIn = sessionPrefs.isLoggedIn()
 
             if (userLoggedIn) {
@@ -128,7 +130,7 @@ class MainActivity : ComponentActivity() {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route ?: "landing"
 
-        // --- 2. ADD "notifications" TO THIS LIST ---
+        // --- ADD "notifications" TO THIS LIST ---
         val loggedInRoutes = listOf(
             "home", "catalog", "apparatus", "chemicals", "slides",
             "borrow", "reserve", "loan", "notifications", "profile", "logs"
@@ -142,7 +144,7 @@ class MainActivity : ComponentActivity() {
         var verificationSuccess by remember { mutableStateOf(false) }
         var phoneVerified by remember { mutableStateOf(false) }
 
-        // 1. State for BorrowScreen
+        // State for BorrowScreen
         var borrowItems by remember { mutableStateOf(mapOf<String, Int>()) }
         val onToggleSelectBorrow = { itemName: String ->
             borrowItems = if (borrowItems.containsKey(itemName)) {
@@ -167,7 +169,7 @@ class MainActivity : ComponentActivity() {
             borrowItems = borrowItems - itemName
         }
 
-        // (State for ReserveScreen - no changes)
+        // State for ReserveScreen
         var reservationItems by remember { mutableStateOf(mapOf<String, Int>()) }
         val onToggleSelectReserve = { itemName: String ->
             reservationItems = if (reservationItems.containsKey(itemName)) {
@@ -192,7 +194,7 @@ class MainActivity : ComponentActivity() {
             reservationItems = reservationItems - itemName
         }
 
-        // (State for LoanScreen - no changes)
+        // State for LoanScreen
         var loanItems by remember { mutableStateOf(mapOf<String, Int>()) }
         val onToggleSelectLoan = { itemName: String ->
             loanItems = if (loanItems.containsKey(itemName)) {
@@ -300,7 +302,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // --- FIXED SIGNUP ROUTE ---
                     composable("signup") {
                         SignUpScreen(
                             onBackClick = { navController.popBackStack() },
@@ -361,7 +362,7 @@ class MainActivity : ComponentActivity() {
                                     "dashboard" -> "admin_home"
                                     "requests" -> "admin_requests"
                                     "notifications" -> "admin_notifications"
-                                    "logs" -> "admin_logs"
+                                    "logs", "history" -> "admin_logs" // Added "history" mapping
                                     "profile" -> "admin_profile"
                                     else -> "admin_home"
                                 }
@@ -383,7 +384,7 @@ class MainActivity : ComponentActivity() {
                                     "dashboard" -> "admin_home"
                                     "requests" -> "admin_requests"
                                     "notifications" -> "admin_notifications"
-                                    "logs" -> "admin_logs"
+                                    "logs", "history" -> "admin_logs"
                                     "profile" -> "admin_profile"
                                     else -> "admin_home"
                                 }
@@ -398,21 +399,64 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // --- NEW ADMIN PROFILE ROUTE ---
-                    composable("admin_profile") {
-                        AdminProfileScreen(
+                    composable("admin_notifications") {
+                        NotificationAdminPage(
                             onNavSelected = { route ->
-                                // Standard Admin Navigation logic to switch tabs
                                 val destination = when (route) {
                                     "dashboard" -> "admin_home"
                                     "requests" -> "admin_requests"
                                     "notifications" -> "admin_notifications"
-                                    "logs" -> "admin_logs"
+                                    "logs", "history" -> "admin_logs"
                                     "profile" -> "admin_profile"
                                     else -> "admin_home"
                                 }
 
-                                // Navigate only if we are changing screens
+                                if (destination != "admin_notifications") {
+                                    navController.navigate(destination) {
+                                        popUpTo("admin_home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    // --- 3. NEW ADMIN LOGS / HISTORY ROUTE ---
+                    composable("admin_logs") {
+                        AdminActivityLogsPage(
+                            onNavSelected = { route ->
+                                val destination = when (route) {
+                                    "dashboard" -> "admin_home"
+                                    "requests" -> "admin_requests"
+                                    "notifications" -> "admin_notifications"
+                                    "logs", "history" -> "admin_logs"
+                                    "profile" -> "admin_profile"
+                                    else -> "admin_home"
+                                }
+
+                                if (destination != "admin_logs") {
+                                    navController.navigate(destination) {
+                                        popUpTo("admin_home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    // ---------------------------------------------------
+
+                    composable("admin_profile") {
+                        AdminProfileScreen(
+                            onNavSelected = { route ->
+                                val destination = when (route) {
+                                    "dashboard" -> "admin_home"
+                                    "requests" -> "admin_requests"
+                                    "notifications" -> "admin_notifications"
+                                    "logs", "history" -> "admin_logs"
+                                    "profile" -> "admin_profile"
+                                    else -> "admin_home"
+                                }
+
                                 if (destination != "admin_profile") {
                                     navController.navigate(destination) {
                                         popUpTo("admin_home") { inclusive = false }
@@ -457,7 +501,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // --- 3. ADD NOTIFICATION ROUTE HERE ---
                     composable("notifications") {
                         NotificationPage(
                             onNavSelected = { route ->
@@ -465,7 +508,6 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-
 
                     composable("catalog") {
 
@@ -572,7 +614,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // --- LOGS ROUTE ---
                     composable(
                         route = "logs?showToast={showToast}",
                         arguments = listOf(
@@ -589,7 +630,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // --- BORROWER PROFILE ---
                     composable("profile") {
                         val context = LocalContext.current
                         val sessionPrefs = remember { SessionPreferences(context) }

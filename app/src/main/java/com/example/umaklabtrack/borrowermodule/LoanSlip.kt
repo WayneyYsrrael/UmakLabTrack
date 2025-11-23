@@ -167,7 +167,7 @@ fun LoanInformationSlipDialog(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier
                     .shadow(4.dp)
-                    .width(350.dp)
+                    .fillMaxWidth(0.95f) // <--- This makes it take 95% of the screen width
                     .heightIn(max = 750.dp)
             ) {
                 Column(
