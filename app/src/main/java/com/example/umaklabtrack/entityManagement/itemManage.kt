@@ -74,7 +74,6 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
         reservationId: Int,
         selected: Map<String, Int>
     ) = coroutineScope {
-        // Fetch all item IDs in parallel
         val itemsToInsert = selected.map { (name, quantity) ->
             async(Dispatchers.IO) {
                 val itemId = getItemIdByName(name) ?: 1
@@ -87,7 +86,6 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
             }
         }.awaitAll()
 
-        // Insert items sequentially (or can also be async if Supabase allows)
         itemsToInsert.forEach { item ->
             supabaseClient.postgrest["transacted_items"].insert(item)
         }
@@ -108,7 +106,8 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
         val borrowing_date: String = "",
         val created_at: String = "",
         val room: String = "",
-        val student_representative_names: List<String> = emptyList()
+        val student_representative_names: List<String> = emptyList(),
+        val status: String = ""
     )
 
     suspend fun insertBorrowerInfo(
@@ -116,7 +115,8 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
         college: String,
         yearSection: String,
         selected: Map<String, Int>,
-        types: String
+        types: String,
+        status:String
     ): Int? {
         return try {
             val now = java.time.LocalDateTime.now()
@@ -129,21 +129,18 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
                 subject = subject,
                 college = college,
                 yr_section = yearSection,
+                status = status,
                 borrowing_date = UserSession.pickup ?: now.toString(),
                 created_at = now.toString(),
                 room = UserSession.room!!,
                 student_representative_names = UserSession.listStud!!
             )
-
-            // Insert into reservation and get the inserted reservation_id
             val inserted: BorrowerInfo = supabaseClient.postgrest
                 .from("reservation")
                 .insert(borrowerInfo) {
                     select(columns = Columns.list("reservation_id"))
                 }
                 .decodeSingle()
-
-            // Use the actual reservation_id returned
             val reservationId = inserted.reservation_id
 
             insertItemsToSupabase(
@@ -185,9 +182,12 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
                 filter { eq("user_id", UserSession.USER_ID!!) }
                 order(column = "reservation_id", order = Order.DESCENDING)
                 limit(1)
-            }.decodeSingle<BorrowInfo>()
-        return response
+            }
+            .decodeList<BorrowInfo>()    // <-- SAFE
+
+        return response.firstOrNull()   // <-- SAFE
     }
+
 
     @Serializable
     data class BorrowInfo(
@@ -195,7 +195,6 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
         val type: String,
         val created_at: String,
         val status: String
-        // reservation_id is intentionally omitted
     )
 
     @Serializable
@@ -204,7 +203,12 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
         val type: String,
         val created_at: String,
         val status: String,
-        val reservation_id: Int // use Int to match the DB and items
+        val reservation_id: Int,
+        val subject:String,
+        val college:String,
+        val yr_section: String,
+        val student_representative_names: List<String>,
+        val return_by: String
     )
 
     suspend fun getReservationsForUser(): List<BorrowInfoWithId> {
@@ -216,7 +220,12 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
                     "type",
                     "created_at",
                     "status",
-                    "reservation_id"
+                    "reservation_id",
+                    "subject",
+                    "college",
+                    "yr_section",
+                    "student_representative_names",
+                    "return_by"
                 )
             ) {
                 filter { eq("user_id", UserSession.USER_ID!!) }
@@ -225,19 +234,6 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
             .decodeList() ?: emptyList()
     }
 
-    // Optional: Map to BorrowInfo + reservation_id pair
-    fun mapToBorrowInfoPair(list: List<BorrowInfoWithId>): List<Pair<BorrowInfo, Int>> {
-        return list.map { borrow ->
-            BorrowInfo(
-                user_id = borrow.user_id,
-                type = borrow.type,
-                created_at = borrow.created_at,
-                status = borrow.status
-            ) to borrow.reservation_id
-        }
-    }
-
-    // Function to get items for a reservation
     suspend fun getItemsForReservation(reservationId: Int): List<TransactedItem> {
         return supabaseClient.postgrest
             .from("transacted_items")
@@ -246,9 +242,6 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
             }
             .decodeList<TransactedItem>()
     }
-
-
-    // Function to get reservations with their items
     suspend fun getReservationsWithItems(): Map<BorrowInfoWithId, List<TransactedItem>> {
         val reservations = getReservationsForUser()
         val map = mutableMapOf<BorrowInfoWithId, List<TransactedItem>>()
@@ -260,12 +253,13 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
 
         return map
     }
-    suspend fun getCategory(itemId: Int): String? {
+    suspend fun getCategory(itemId: Int,name:String): String? {
         return try {
             val result: List<ItemL> = supabaseClient.postgrest
                 .from("item")
-                .select(columns = Columns.list("item_id", "category")) {
+                .select(columns = Columns.list("item_id", "category","name")) {
                     filter { eq("item_id", itemId) }
+                    filter { eq("name", name) }
                 }
                 .decodeList()
 
@@ -276,9 +270,11 @@ class ItemManage(private val spb: SupabaseConnection = SupabaseConnection()) {
         }
     }
 
+    @Serializable
     data class ItemL(
         val item_id: Int,
-        val category: String
+        val category: String,
+        val name: String
     )
 
 

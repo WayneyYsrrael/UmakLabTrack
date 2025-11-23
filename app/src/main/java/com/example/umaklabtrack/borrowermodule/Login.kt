@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import com.example.umaklabtrack.entityManagement.CredentialsValidation
 import com.example.umaklabtrack.R
+import com.example.umaklabtrack.dataClasses.UserSession
 
 private val crdtuser = CredentialsValidation()
 
@@ -103,15 +104,7 @@ fun LoginScreen(
         // ------------------------------------------------
         // ✅ HARD CODED ADMIN LOGIN LOGIC
         // ------------------------------------------------
-        if (email == "admin@umak.edu.ph" && password == "admin213") {
-            showToast("Success!", "Admin login successful!", "success")
-            coroutineScope.launch {
-                delay(1500)
-                // ✅ Call the ADMIN specific callback
-                onAdminLoginSuccess()
-            }
-            return
-        }
+
         // ------------------------------------------------
 
         if (!email.endsWith("@umak.edu.ph")) {
@@ -121,7 +114,7 @@ fun LoginScreen(
         }
 
         coroutineScope.launch {
-            val isLoggedIn = crdtuser.loginUser(
+            val userRole = crdtuser.loginUser(
                 email,
                 crdtuser.hashPassword(password),
                 rememberMe,
@@ -129,11 +122,23 @@ fun LoginScreen(
                 password
             )
 
-            if (isLoggedIn) {
-                showToast("Success!", "Login successful!", "success")
-                delay(1500)
-                onLoginSuccess()
-            } else {
+            if (userRole!=null) {
+                showToast("Success!", "$userRole", "success")
+                if(userRole=="user") {
+                    showToast("Success!", "Login successful!", "success")
+                    delay(1500)
+                    onLoginSuccess()
+                }
+               else if (userRole=="admin"){
+           showToast("Success!", "Admin login successful!", "success")
+           coroutineScope.launch {
+                delay(1500) // ✅ Call the ADMIN specific callback
+               onAdminLoginSuccess()
+           }
+
+  }
+            }
+            else {
                 emailError = true
                 passwordError = true
                 showToast("Oops!", "Incorrect email or password!", "error")

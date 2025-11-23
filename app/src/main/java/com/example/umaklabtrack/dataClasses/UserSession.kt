@@ -8,6 +8,8 @@ object UserSession {
     var cNum: String? = null
     var USER_ID: String? = null
 
+    var ROLE: String? = null
+
     var listStud: List<String>? = null
 
     //logs
@@ -32,5 +34,6 @@ object UserSession {
         college = null
         subject = null
         yearSection = null
+        ROLE=null
     }
 }

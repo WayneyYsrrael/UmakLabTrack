@@ -1,4 +1,23 @@
 package com.example.umaklabtrack.borrowermodule
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+
+import androidx.compose.ui.unit.dp
+
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.draw.shadow
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -12,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.RemoveCircle
 import androidx.compose.material3.*
@@ -40,6 +60,7 @@ import kotlin.collections.map
 import com.example.umaklabtrack.entityManagement.ItemManage.BorrowInfoWithId
 import com.example.umaklabtrack.entityManagement.ItemManage.TransactedItem
 import com.example.umaklabtrack.entityManagement.ItemManage.ItemL
+import com.example.umaklabtrack.utils.TimeUtils
 
 
 private val itemManage = ItemManage()
@@ -118,13 +139,17 @@ fun ActivityLogsScreen(
                                     onAction = { action ->
                                         selectedReservation = reservation
                                         visible = true
-//                                        toastUser = "System"
-//                                        toastMessage = "Action executed for ${reservation.type}"
-                                        if (reservation.status == "Pending") showEditDialog = true
-                                        if (reservation.status == "RETURNED") showReturnedItemsDialog = true
+//
+                                        if (reservation.status == "Pending"||reservation.status == "Preparing") showReturnedItemsDialog = true
+                                        if (reservation.status == "Preparing") {
+                                            toastMessage = "Please wait while we prepare your items!"
+                                            toastUser = "Admin"
+                                            visible = true
+                                        }
+
                                     }
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(2.dp))
                             }
                         }
                     }
@@ -146,24 +171,32 @@ fun ActivityLogsScreen(
                 )
             }
 
-            if (showEditDialog) {
-                ReturnedItemsDialog(
 
-                    onDismiss = { showReturnedItemsDialog = false },
+            if (showReturnedItemsDialog && selectedReservation != null) {
+                ReturnedItemsDialog(
+                    onDismiss = {
+                        showReturnedItemsDialog = false
+                        selectedReservation = null
+                    },
                     onNext = {
                         showReturnedItemsDialog = false
                         showDetailsDialog = true
                     },
                     reservation = selectedReservation!!,
-                    items = reservationsWithItems[selectedReservation] ?: emptyList(),
+                    items = reservationsWithItems[selectedReservation] ?: emptyList()
                 )
             }
+            if (showSlipDialog && selectedReservation != null) {
 
-            if (showReturnedItemsDialog) {
-                ReturnedItemsDialogDynamic(onDismiss = { showReturnedItemsDialog = false })
             }
+
             if (showDetailsDialog) {
-                TransactionDetailsDialog(onDismiss = { showDetailsDialog = false })
+                val reservation = selectedReservation!!
+                TransactionDetailsDialog(
+                    reservation = reservation,
+                    onDismiss = { showDetailsDialog = false},
+                    onGoBack = {showDetailsDialog = false;showReturnedItemsDialog=true}
+                )
             }
         }
     }
@@ -199,16 +232,34 @@ fun ActivityLogItemCardDynamic(
                     color = Color.Gray
                 )
                 Text(
-                    "Date & Time: ${reservation.created_at}",
+                    "Date & Time: ${TimeUtils.formatTimestamp(reservation.created_at)}",
                     fontFamily = poppins,
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
                 Text(
-                    "Status: ${reservation.status}",
+                    buildAnnotatedString {
+                        withStyle(style = SpanStyle(color = Color.Black)) {
+                            append("Status: ")
+                        }
+
+                        val statusColor = when (reservation.status) {
+                            "toClaim" -> Color(0xFFFFA500)
+                            "claimed" -> Color(0xFFFFA500)
+                            "Pending" -> Color(0xFFFFA500)
+                            "Preparing" -> Color(0xFFFFCE3D)
+                            "Approved" -> Color(0xFF43A047)
+                            "Rejected" -> Color(0xFFD32F2F)
+                            "Returned" -> Color(0xFF6A1B9A)
+                            else -> Color.Black
+                        }
+
+                        withStyle(style = SpanStyle(color = statusColor)) {
+                            append(reservation.status)
+                        }
+                    },
                     fontFamily = poppins,
-                    fontSize = 12.sp,
-                    color = Color.Blue
+                    fontSize = 12.sp
                 )
 
 //            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -224,7 +275,7 @@ fun ActivityLogItemCardDynamic(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182C55)),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Action", fontFamily = poppins, fontSize = 12.sp, color = Color.White)
+                Text("View", fontFamily = poppins, fontSize = 12.sp, color = Color.White)
             }
         }
     }
@@ -295,24 +346,7 @@ fun ActivityLogsScreenPreview() {
 }
 
 
-@Composable
-fun TransactionDetailsDialog(onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
-                Text("Transaction Details", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                // Add your transaction details here using BorrowInfo and TransactedItem
-                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Close")
-                }
-            }
-        }
-    }
-}
+
 @Composable
 fun ReturnedItemsDialog(
     onDismiss: () -> Unit,
@@ -324,11 +358,23 @@ fun ReturnedItemsDialog(
 
     LaunchedEffect(items) {
         val list = items.map { transItem ->
-            val category = itemManage.getCategory(transItem.item_id) // suspend call
-            Triple(transItem.item_name, "Apparatus", transItem.quantity)
+
+            println("DEBUG: Fetching category for item_id=${transItem.item_id}, name=${transItem.item_name}")
+
+            val category = itemManage.getCategory(transItem.item_id, transItem.item_name)
+
+            println("DEBUG: Category result = $category")
+
+            Triple(
+                transItem.item_name,
+                category ?: "Unknown",
+                transItem.quantity
+            )
         }
+
         returnedItems = list
     }
+
 
 
     Dialog(onDismissRequest = onDismiss) {
@@ -342,7 +388,7 @@ fun ReturnedItemsDialog(
                 // HEADER
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Selected Items",
+                        text = "Transacted Items",
                         fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = poppins,
                         textAlign = TextAlign.Center, color = Color(0xFF182C55),
                         modifier = Modifier.align(Alignment.Center)
@@ -353,7 +399,7 @@ fun ReturnedItemsDialog(
                     )
                 }
                 Text(
-                    text = "Borrowing", fontSize = 14.sp, color = Color.Gray, fontFamily = poppins,
+                    text = "Current Status: ${reservation.status}", fontSize = 14.sp, color = Color.Gray, fontFamily = poppins,
                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                 )
                 Divider(modifier = Modifier.padding(top = 8.dp, bottom = 12.dp), color = Color(0xFF182C55), thickness = 2.dp)
@@ -385,5 +431,147 @@ fun ReturnedItemsDialog(
                 Button(onClick = onNext, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF182C55)), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Next", fontFamily = poppins, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TransactionDetailsDialog(
+    reservation: BorrowInfoWithId,
+    onDismiss: () -> Unit,
+    onGoBack:()-> Unit// optional go back action
+) {
+    Dialog(
+        onDismissRequest = onDismiss
+    ) {
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 600.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Header
+                    val statusText = when (reservation.status.lowercase()) {
+                        "preparing" -> "Preparing"
+                        "borrowed" -> "Borrowed"
+                        "returned" -> "Returned"
+                        "pending" -> "Pending"
+                        else -> "Unknown"
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp, horizontal = 8.dp)
+                            .height(56.dp) // optional, gives top bar height
+                    ) {
+                        // Back arrow aligned to start
+                        IconButton(
+                            onClick = { onGoBack() },
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color(0xFF202020)
+                            )
+                        }
+
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.align(Alignment.Center)
+                        ) {
+                            Text(
+                                "Prof. ${UserSession.name}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                fontFamily = poppins,
+                                color = Color(0xFF182C55)
+                            )
+                            Text(
+                                statusText,
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                fontFamily = poppins
+                            )
+                        }
+                    }
+
+                    Divider(modifier = Modifier.padding(top = 12.dp, bottom = 12.dp), color = Color(0xFF182C55), thickness = 2.dp)
+
+                    // Subject
+                    FormSection1(label = "Subject:") {
+                        Text(reservation.subject, style = TextStyle(fontSize = 14.sp))
+                    }
+
+                    // College
+                    FormSection1(label = "College:") {
+                        Text(reservation.college, style = TextStyle(fontSize = 14.sp))
+                    }
+
+                    // Year & Section
+                    FormSection1(label = "Year & Section:") {
+                        Text(reservation.yr_section, style = TextStyle(fontSize = 14.sp))
+                    }
+
+                    // Student Representatives
+                    FormSection1(label = "Student Representatives:") {
+                        if (reservation.student_representative_names.isEmpty()) {
+                            Text("No students added.", color = Color.Gray, fontSize = 14.sp)
+                        } else {
+                            Column {
+                                reservation.student_representative_names.forEach { student ->
+                                    Text(student, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // Borrowing Date & Time
+                    FormSection1(label = "Borrowing Date & Time:") {
+                        Text(TimeUtils.formatTimestamp(reservation.created_at), fontSize = 14.sp)
+                    }
+
+                    // Return Date & Time
+                    FormSection1(label = "Return Date & Time:") {
+                        Text(TimeUtils.formatTimestamp(reservation.return_by), fontSize = 14.sp)
+                    }
+
+                    Divider(modifier = Modifier.padding(top = 12.dp, bottom = 16.dp), color = Color(0xFF182C55), thickness = 2.dp)
+
+                    // Close button
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFFF5252)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Text("Close", color = Color(0xFFFF5252), fontWeight = FontWeight.Bold, fontFamily = poppins)
+                    }
+                }
+            }
+        }
+    }
+
+
+@Composable
+fun FormSection1(label: String, content: @Composable () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Text(
+            label,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        content()
     }
 }

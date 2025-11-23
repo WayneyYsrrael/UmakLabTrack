@@ -240,6 +240,7 @@ fun LoanScreen(
                                 "", // Section Removed (Empty String)
                                 selectedItems,
                                 "Loan",
+                                "Pending"
                             )
 
                             withContext(Dispatchers.Main) {

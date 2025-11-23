@@ -350,7 +350,8 @@ fun BorrowScreen(
                                 UserSession.college!!,
                                 UserSession.yearSection!!,
                                 selectedItems,
-                                "Borrow"
+                                "Borrow",
+                                "Preparing"
                             )
                             // Remove all items after insertion
                             withContext(Dispatchers.Main) {
@@ -378,7 +379,7 @@ fun DynamicBorrowList(
     selectedItems: Set<String>,
     onToggleSelect: (String) -> Unit,
     onItemClick: (ItemDetails) -> Unit,
-    showImage: Boolean // <-- ADDED PARAMETER
+    showImage: Boolean
 ) {
     val processedList = when (sortOption) {
         "Name A-Z" -> items.sortedBy { it.name }

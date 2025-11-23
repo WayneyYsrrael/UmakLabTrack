@@ -47,14 +47,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         lifecycleScope.launch {
-
+//    sessionPrefs.clearSession()
             val userLoggedIn = sessionPrefs.isLoggedIn()
 
             if (userLoggedIn) {
                 val user = sessionPrefs.loadSession()
                 UserSession.USER_ID=user.userId
                 UserSession.name=user.name
-                println("✅ User is logged in: ${user.name}, ${user.email}")
+                UserSession.ROLE=user.role
+                println("✅ User is logged in: ${user.role}, ${user.email}")
             } else {
                 println("❌ User is not logged in")
             }
@@ -81,7 +82,16 @@ class MainActivity : ComponentActivity() {
         if (showSplash) {
             SplashScreen()
         } else {
-            MainNavigation(startDestination = if (isLoggedIn) "home" else "landing")
+            val startDestination =
+                if (!isLoggedIn) {
+                    "landing"
+                } else if (UserSession.ROLE == "admin") {
+                    "admin_home"
+                } else {
+                    "home"
+                }
+
+            MainNavigation(startDestination = startDestination)
         }
     }
 

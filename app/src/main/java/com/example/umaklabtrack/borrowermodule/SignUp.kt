@@ -138,9 +138,11 @@ fun SignUpScreen(
             name = "$firstName $lastName",
             email = email,
             contact=contactNumber,
-            hashedPassword = validator.hashPassword(password)
+            hashedPassword = validator.hashPassword(password),
+            role="user"
         )
         UserSession.name = newUser.name
+        UserSession.ROLE = newUser.role
         UserSession.email = newUser.email
         UserSession.hashedPassword=newUser.hashedPassword
         UserSession.cNum=newUser.contact

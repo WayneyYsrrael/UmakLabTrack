@@ -64,7 +64,8 @@ private val VISIBLE_ITEMS = 3
 fun BorrowerInformationSlipDialog(
     onDismiss: () -> Unit,
     onGoBack: () -> Unit,
-    onConfirm: (subject: String, college: String, section: String) -> Unit
+    onConfirm: (subject: String, college: String, section: String) -> Unit,
+
 ) {
     // --- Toast logic ---
     var toastMessage by remember { mutableStateOf("") }
@@ -156,7 +157,7 @@ fun BorrowerInformationSlipDialog(
     // --- MAIN DIALOG ---
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+//        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Box(
             modifier = Modifier

@@ -115,7 +115,8 @@ fun SignUpVerificationScreen(
             name = UserSession.name ?: "",
             email = UserSession.email ?: "",
             contact = UserSession.cNum ?: "",
-            hashedPassword = UserSession.hashedPassword ?: ""
+            hashedPassword = UserSession.hashedPassword ?: "",
+           role = UserSession.ROLE ?: ""
         )
     }
     fun handleVerification() {

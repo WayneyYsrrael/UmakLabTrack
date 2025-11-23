@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.umaklabtrack.R
+import com.example.umaklabtrack.dataClasses.UserSession
 import com.example.umaklabtrack.preferences.SessionPreferences
 import com.example.umaklabtrack.ui.theme.AppColors
 import com.example.umaklabtrack.ui.theme.poppins
@@ -162,6 +163,7 @@ fun ProfileScreen(
                 onClick = {
                     scope.launch {
                         sessionPrefs.clearSession()
+                        UserSession.clear()
                         onLogout()
                     }
                 },

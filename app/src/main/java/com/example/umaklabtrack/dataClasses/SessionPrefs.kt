@@ -9,7 +9,8 @@ data class SimpleUser(
     val userId: String?,
     val name: String?,
     val email: String?,
-    val cNum: String?
+    val cNum: String?,
+    val role: String?
 )
 
 object UserPrefsKeys {
@@ -17,6 +18,8 @@ object UserPrefsKeys {
     val NAME = stringPreferencesKey("name")
     val EMAIL = stringPreferencesKey("email")
     val CNUM = stringPreferencesKey("cnum")
+
+    val ROLE = stringPreferencesKey("role")
 }
 
 class SessionPreferences(private val context: Context) {
@@ -25,13 +28,15 @@ class SessionPreferences(private val context: Context) {
         userId: String,
         name: String,
         email: String,
-        cNum: String?
+        cNum: String?,
+        role: String
     ) {
         context.userPrefs.edit { prefs ->
             prefs[UserPrefsKeys.USER_ID] = userId
             prefs[UserPrefsKeys.NAME] = name
             prefs[UserPrefsKeys.EMAIL] = email
             if (cNum != null) prefs[UserPrefsKeys.CNUM] = cNum
+            prefs[UserPrefsKeys.ROLE] = role
         }
     }
 
@@ -41,7 +46,8 @@ class SessionPreferences(private val context: Context) {
             userId = prefs[UserPrefsKeys.USER_ID],          // String?
             name = prefs[UserPrefsKeys.NAME],
             email = prefs[UserPrefsKeys.EMAIL],
-            cNum = prefs[UserPrefsKeys.CNUM]
+            cNum = prefs[UserPrefsKeys.CNUM],
+            role = prefs[UserPrefsKeys.ROLE]
         )
     }
 
@@ -54,9 +60,4 @@ class SessionPreferences(private val context: Context) {
         return prefs[UserPrefsKeys.USER_ID] != null
     }
 
-    // Optional helper
-    suspend fun getUserId(): String? {
-        val prefs = context.userPrefs.data.first()
-        return prefs[UserPrefsKeys.USER_ID]
-    }
 }

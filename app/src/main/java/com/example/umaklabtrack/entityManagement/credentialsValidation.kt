@@ -7,6 +7,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.auth.OtpType
 import java.security.MessageDigest
 import android.content.Context
+import com.example.umaklabtrack.dataClasses.UserSession
 import com.example.umaklabtrack.preferences.SessionPreferences
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.json.buildJsonObject
@@ -111,8 +112,8 @@ class CredentialsValidation {
         hashedPassword: String,
         rememberMe: Boolean,
         context: Context,
-        password: String
-    ): Boolean {
+        password: String,
+    ): String? { // <-- return role as String or null
         return try {
             val params = buildJsonObject {
                 put("user_email", email)
@@ -123,10 +124,14 @@ class CredentialsValidation {
             val user = supabase.postgrest.rpc(
                 function = "login_user",
                 parameters = params
-            ).decodeSingle<User>()
+            ).decodeList<User>().firstOrNull() // safer than decodeSingle
 
             if (user != null) {
+                UserSession.name= user.name
+                UserSession.USER_ID = user.id
                 println("User found with matching email and password")
+
+                // Save remember me prefs
                 val sharedPref = context.getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
                 with(sharedPref.edit()) {
                     if (rememberMe) {
@@ -139,24 +144,26 @@ class CredentialsValidation {
                     apply()
                 }
 
+                // Save session including role
                 val sessionPrefs = SessionPreferences(context)
                 sessionPrefs.saveSession(
-                    userId = user.id!!,
-                    name = user.name,
-                    email = user.email,
-                    cNum = user.contact ?: ""
+                    userId = user.id ?: return null, // fail-safe
+                    name = user.name ?: "",
+                    email = user.email ?: "",
+                    cNum = user.contact ?: "",
+                    role = user.role ?: "user"
                 )
 
-                true
+                user.role ?: "user" // return the role
             } else {
                 println("No user found with this email / password")
-                false
+                null
             }
 
         } catch (e: Exception) {
             println("❌ Error calling RPC: ${e.message}")
             e.printStackTrace()
-            false
+            null
         }
     }
 
